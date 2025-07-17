@@ -1,0 +1,37 @@
+name: PR Test and Build
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      - name: Install dependencies
+        run: go mod tidy
+      - name: Install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@latest
+      - name: Run staticcheck
+        run: staticcheck ./...
+      - name: Run tests
+        run: |
+          if ls *_test.go 1> /dev/null 2>&1; then
+            go test ./...
+          else
+            echo "No tests found, skipping."
+          fi
+      - name: Build
+        run: go build -v -o pihole-sync ./cmd/main.go
+      - name: Archive build
+        uses: actions/upload-artifact@v4
+        with:
+          name: pihole-sync-binary
+          path: pihole-sync

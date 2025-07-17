@@ -1,0 +1,13 @@
+# Copilotによる自動レビュー設定
+
+trigger:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+review:
+  enabled: true
+  reviewers:
+    - github-actions[bot]
