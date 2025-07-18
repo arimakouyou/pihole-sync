@@ -1,0 +1,18 @@
+master:
+    host: http://restored-master.local
+    api_key: restored-key
+slaves: []
+sync_trigger:
+    schedule: ""
+    api_call: false
+    webui: false
+    config_file_watch: false
+logging:
+    level: ""
+    debug: false
+slack:
+    webhook_url: ""
+    notify_on_error: false
+sync_retry:
+    enabled: false
+    count: 0

@@ -1,0 +1,36 @@
+master:
+  host: "http://pihole-master.local"
+  api_key: "xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+slaves:
+  - host: "http://pihole-slave1.local"
+    api_key: "yyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+    sync_items:
+      adlists: true
+      blacklist: true
+      whitelist: false
+      groups: true
+      dns_records: false
+      dhcp: false
+  - host: "http://pihole-slave2.local"
+    api_key: "zzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+    sync_items:
+      adlists: true
+      blacklist: false
+      whitelist: true
+      groups: true
+      dns_records: true
+      dhcp: false
+sync_trigger:
+  schedule: "0 3 * * *"
+  api_call: true
+  webui: true
+  config_file_watch: true
+logging:
+  level: "INFO"
+  debug: false
+slack:
+  webhook_url: "https://hooks.slack.com/services/XXXXXXXXX/XXXXXXXXX/XXXXXXXXXXXXXXXXXXXX"
+  notify_on_error: true
+sync_retry:
+  enabled: true
+  count: 3
