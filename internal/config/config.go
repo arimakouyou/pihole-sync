@@ -14,6 +14,7 @@ type Config struct {
 	Logging     Logging       `yaml:"logging"`
 	Slack       Slack         `yaml:"slack"`
 	SyncRetry   SyncRetry     `yaml:"sync_retry"`
+	Gravity     []string      `yaml:"gravity"`
 }
 
 type MasterConfig struct {

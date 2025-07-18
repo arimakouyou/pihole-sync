@@ -36,7 +36,7 @@ func NewServer(cfg *config.Config) *Server {
 		config:   cfg,
 		syncer:   syncer,
 		notifier: notifier,
-		gravity:  []string{},
+		gravity:  cfg.Gravity,
 	}
 }
 
@@ -145,6 +145,7 @@ func (s *Server) GravityPostHandler(w http.ResponseWriter, r *http.Request) {
 		
 		if gravity, ok := request["gravity"]; ok {
 			s.gravity = gravity
+			s.config.Gravity = gravity
 		}
 	} else {
 		text := string(body)
@@ -159,6 +160,13 @@ func (s *Server) GravityPostHandler(w http.ResponseWriter, r *http.Request) {
 				s.gravity = append(s.gravity, domain)
 			}
 		}
+		s.config.Gravity = s.gravity
+	}
+
+	if err := s.config.SaveConfig("config.yaml"); err != nil {
+		log.Printf("Failed to save gravity to config: %v", err)
+		http.Error(w, "Failed to save gravity data", http.StatusInternalServerError)
+		return
 	}
 
 	response := map[string]string{
