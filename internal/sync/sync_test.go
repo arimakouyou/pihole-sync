@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/arimakouyou/pihole-sync/internal/config"
-	"github.com/arimakouyou/pihole-sync/internal/pihole"
 )
 
 func TestNewSyncer(t *testing.T) {
@@ -43,70 +42,6 @@ func TestCanSync(t *testing.T) {
 
 	syncer.lastSync = time.Now().Add(-11 * time.Second)
 	assert.True(t, syncer.CanSync())
-}
-
-func TestFilterDataForSlave(t *testing.T) {
-	cfg := &config.Config{}
-	syncer := NewSyncer(cfg)
-
-	masterData := &pihole.PiholeData{
-		Adlists:    []string{"adlist1", "adlist2"},
-		Blacklist:  []string{"black1", "black2"},
-		Whitelist:  []string{"white1", "white2"},
-		Groups:     []string{"group1", "group2"},
-		DNSRecords: []string{"dns1", "dns2"},
-		DHCP:       []string{"dhcp1", "dhcp2"},
-	}
-
-	syncItems := config.SyncItems{
-		Adlists:    true,
-		Blacklist:  false,
-		Whitelist:  true,
-		Groups:     false,
-		DNSRecords: true,
-		DHCP:       false,
-	}
-
-	filtered := syncer.filterDataForSlave(masterData, syncItems)
-
-	assert.Equal(t, []string{"adlist1", "adlist2"}, filtered.Adlists)
-	assert.Empty(t, filtered.Blacklist)
-	assert.Equal(t, []string{"white1", "white2"}, filtered.Whitelist)
-	assert.Empty(t, filtered.Groups)
-	assert.Equal(t, []string{"dns1", "dns2"}, filtered.DNSRecords)
-	assert.Empty(t, filtered.DHCP)
-}
-
-func TestFilterDataForSlaveAllDisabled(t *testing.T) {
-	cfg := &config.Config{}
-	syncer := NewSyncer(cfg)
-
-	masterData := &pihole.PiholeData{
-		Adlists:    []string{"adlist1", "adlist2"},
-		Blacklist:  []string{"black1", "black2"},
-		Whitelist:  []string{"white1", "white2"},
-		Groups:     []string{"group1", "group2"},
-		DNSRecords: []string{"dns1", "dns2"},
-		DHCP:       []string{"dhcp1", "dhcp2"},
-	}
-
-	syncItems := config.SyncItems{
-		Adlists:    false,
-		Blacklist:  false,
-		Whitelist:  false,
-		Groups:     false,
-		DNSRecords: false,
-		DHCP:       false,
-	}
-
-	filtered := syncer.filterDataForSlave(masterData, syncItems)
-
-	assert.Empty(t, filtered.Adlists)
-	assert.Empty(t, filtered.Blacklist)
-	assert.Empty(t, filtered.Whitelist)
-	assert.Empty(t, filtered.Groups)
-	assert.Empty(t, filtered.DNSRecords)
-	assert.Empty(t, filtered.DHCP)
 }
 
 func TestSyncWithRetryLogic(t *testing.T) {
@@ -170,38 +105,6 @@ func TestSyncWithNilMasterData(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to get master data")
 }
 
-func TestFilterDataForSlaveAllEnabled(t *testing.T) {
-	cfg := &config.Config{}
-	syncer := NewSyncer(cfg)
-
-	masterData := &pihole.PiholeData{
-		Adlists:    []string{"adlist1", "adlist2"},
-		Blacklist:  []string{"black1", "black2"},
-		Whitelist:  []string{"white1", "white2"},
-		Groups:     []string{"group1", "group2"},
-		DNSRecords: []string{"dns1", "dns2"},
-		DHCP:       []string{"dhcp1", "dhcp2"},
-	}
-
-	syncItems := config.SyncItems{
-		Adlists:    true,
-		Blacklist:  true,
-		Whitelist:  true,
-		Groups:     true,
-		DNSRecords: true,
-		DHCP:       true,
-	}
-
-	filtered := syncer.filterDataForSlave(masterData, syncItems)
-
-	assert.Equal(t, []string{"adlist1", "adlist2"}, filtered.Adlists)
-	assert.Equal(t, []string{"black1", "black2"}, filtered.Blacklist)
-	assert.Equal(t, []string{"white1", "white2"}, filtered.Whitelist)
-	assert.Equal(t, []string{"group1", "group2"}, filtered.Groups)
-	assert.Equal(t, []string{"dns1", "dns2"}, filtered.DNSRecords)
-	assert.Equal(t, []string{"dhcp1", "dhcp2"}, filtered.DHCP)
-}
-
 func TestSyncWithMultipleSlaves(t *testing.T) {
 	cfg := &config.Config{
 		Master: config.MasterConfig{
@@ -247,29 +150,14 @@ func TestSyncRateLimiting(t *testing.T) {
 	}
 
 	syncer := NewSyncer(cfg)
-	
+
 	syncer.lastSync = time.Now().Add(-5 * time.Second)
 	assert.False(t, syncer.CanSync(), "Should not allow sync within 10 seconds")
-	
+
 	result, err := syncer.Sync()
 	assert.NoError(t, err)
 	assert.False(t, result.Success)
 	assert.Contains(t, result.Message, "10秒以内に呼び出し済み")
-}
-
-func TestFilterDataForSlaveWithNilMasterData(t *testing.T) {
-	cfg := &config.Config{}
-	syncer := NewSyncer(cfg)
-
-	syncItems := config.SyncItems{
-		Adlists:   true,
-		Blacklist: true,
-	}
-
-	filtered := syncer.filterDataForSlave(nil, syncItems)
-	assert.NotNil(t, filtered)
-	assert.Empty(t, filtered.Adlists)
-	assert.Empty(t, filtered.Blacklist)
 }
 
 func TestSyncWithDisabledRetry(t *testing.T) {
@@ -301,7 +189,7 @@ func TestSyncWithDisabledRetry(t *testing.T) {
 func TestGetLastSyncInitialValue(t *testing.T) {
 	cfg := &config.Config{}
 	syncer := NewSyncer(cfg)
-	
+
 	lastSync := syncer.GetLastSync()
 	assert.True(t, lastSync.IsZero(), "Initial last sync should be zero time")
 }

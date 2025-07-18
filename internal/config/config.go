@@ -40,10 +40,10 @@ type SyncItems struct {
 }
 
 type SyncTrigger struct {
-	Schedule          string `yaml:"schedule"`
-	APICall           bool   `yaml:"api_call"`
-	WebUI             bool   `yaml:"webui"`
-	ConfigFileWatch   bool   `yaml:"config_file_watch"`
+	Schedule        string `yaml:"schedule"`
+	APICall         bool   `yaml:"api_call"`
+	WebUI           bool   `yaml:"webui"`
+	ConfigFileWatch bool   `yaml:"config_file_watch"`
 }
 
 type Logging struct {
@@ -52,8 +52,8 @@ type Logging struct {
 }
 
 type Slack struct {
-	WebhookURL     string `yaml:"webhook_url"`
-	NotifyOnError  bool   `yaml:"notify_on_error"`
+	WebhookURL    string `yaml:"webhook_url"`
+	NotifyOnError bool   `yaml:"notify_on_error"`
 }
 
 type SyncRetry struct {
