@@ -36,7 +36,7 @@ func NewServer(cfg *config.Config) *Server {
 		config:   cfg,
 		syncer:   syncer,
 		notifier: notifier,
-		gravity:  []string{},
+		gravity:  cfg.Gravity,
 	}
 }
 
@@ -145,6 +145,11 @@ func (s *Server) GravityPostHandler(w http.ResponseWriter, r *http.Request) {
 		
 		if gravity, ok := request["gravity"]; ok {
 			s.gravity = gravity
+			s.config.Gravity = gravity
+			
+			if err := s.config.SaveConfig("config.yaml"); err != nil {
+				log.Printf("Failed to save config with gravity: %v", err)
+			}
 		}
 	} else {
 		text := string(body)
@@ -158,6 +163,11 @@ func (s *Server) GravityPostHandler(w http.ResponseWriter, r *http.Request) {
 				domain = strings.TrimSuffix(domain, "/0.0.0.0")
 				s.gravity = append(s.gravity, domain)
 			}
+		}
+		
+		s.config.Gravity = s.gravity
+		if err := s.config.SaveConfig("config.yaml"); err != nil {
+			log.Printf("Failed to save config with gravity: %v", err)
 		}
 	}
 
@@ -217,6 +227,7 @@ func (s *Server) RestoreHandler(w http.ResponseWriter, r *http.Request) {
 
 	s.config = backup.Config
 	s.gravity = backup.Gravity
+	s.config.Gravity = backup.Gravity
 
 	if err := s.config.SaveConfig("config.yaml"); err != nil {
 		log.Printf("Failed to save config: %v", err)
@@ -417,12 +428,23 @@ func (s *Server) GravityHandler(w http.ResponseWriter, r *http.Request) {
 	} else if r.Method == http.MethodPost {
 		gravityData := r.FormValue("gravity")
 		
-		r.Body = io.NopCloser(strings.NewReader(gravityData))
-		r.Header.Set("Content-Type", "text/plain")
+		lines := strings.Split(gravityData, "\n")
+		s.gravity = []string{}
 		
-		s.GravityPostHandler(w, r)
-		if w.Header().Get("Location") == "" {
-			http.Redirect(w, r, "/", http.StatusSeeOther)
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line != "" && strings.HasPrefix(line, "address=/") && strings.HasSuffix(line, "/0.0.0.0") {
+				domain := strings.TrimPrefix(line, "address=/")
+				domain = strings.TrimSuffix(domain, "/0.0.0.0")
+				s.gravity = append(s.gravity, domain)
+			}
 		}
+		
+		s.config.Gravity = s.gravity
+		if err := s.config.SaveConfig("config.yaml"); err != nil {
+			log.Printf("Failed to save config with gravity: %v", err)
+		}
+		
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
