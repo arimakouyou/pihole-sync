@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>設定編集 - Pi-hole Sync</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="header">
+        <h1>設定編集</h1>
+        <p>Pi-hole Sync システムの設定を編集します</p>
+    </div>
+
+    <div class="card">
+        <a href="/" class="btn btn-info">← トップページに戻る</a>
+    </div>
+
+    <div class="card">
+        <h2>YAML設定ファイル</h2>
+        <form id="config-form">
+            <div class="form-group">
+                <label for="config-yaml">config.yaml の内容:</label>
+                <textarea id="config-yaml" name="config" placeholder="YAML設定をここに入力してください..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">設定を保存</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>設定状態</h2>
+        <div id="status-display">
+            <p>設定ファイルを読み込み中...</p>
+        </div>
+    </div>
+
+    <script>
+        async function loadConfig() {
+            try {
+                const response = await fetch('/config');
+                const config = await response.text();
+                document.getElementById('config-yaml').value = config;
+                
+                document.getElementById('status-display').innerHTML = 
+                    '<div class="status status-success">設定ファイルを正常に読み込みました。</div>';
+            } catch (error) {
+                document.getElementById('status-display').innerHTML = 
+                    '<div class="status status-error">設定ファイルの読み込みに失敗しました: ' + error.message + '</div>';
+            }
+        }
+
+        document.getElementById('config-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const configData = document.getElementById('config-yaml').value;
+            const statusDiv = document.getElementById('status-display');
+            
+            statusDiv.innerHTML = '<p>設定を保存中...</p>';
+            
+            try {
+                const response = await fetch('/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain'
+                    },
+                    body: configData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.status === 'success') {
+                    statusDiv.innerHTML = '<div class="status status-success">設定を正常に保存しました。</div>';
+                } else {
+                    statusDiv.innerHTML = '<div class="status status-error">設定の保存に失敗しました: ' + (result.message || 'Unknown error') + '</div>';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = '<div class="status status-error">通信エラー: ' + error.message + '</div>';
+            }
+        });
+
+        loadConfig();
+    </script>
+</body>
+</html>

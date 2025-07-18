@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gravity編集 - Pi-hole Sync</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="header">
+        <h1>Gravity編集</h1>
+        <p>Gravityリストの編集・管理を行います</p>
+    </div>
+
+    <div class="card">
+        <a href="/" class="btn btn-info">← トップページに戻る</a>
+    </div>
+
+    <div class="card">
+        <h2>Gravityリスト編集</h2>
+        <form id="gravity-form">
+            <div class="form-group">
+                <label for="gravity-list">Gravityリスト (1行に1つのドメイン):</label>
+                <textarea id="gravity-list" name="gravity" placeholder="ads.example.com
+tracker.example.com
+malware.example.com"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Gravityリストを保存</button>
+            <button type="button" class="btn btn-success" onclick="syncGravity()">同期実行</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>操作状態</h2>
+        <div id="status-display">
+            <p>Gravityリストを読み込み中...</p>
+        </div>
+    </div>
+
+    <script>
+        async function loadGravity() {
+            try {
+                const response = await fetch('/gravity', {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.gravity) {
+                    document.getElementById('gravity-list').value = data.gravity.join('\n');
+                }
+                
+                document.getElementById('status-display').innerHTML = 
+                    '<div class="status status-success">Gravityリストを正常に読み込みました (' + (data.gravity ? data.gravity.length : 0) + ' 件)。</div>';
+            } catch (error) {
+                document.getElementById('status-display').innerHTML = 
+                    '<div class="status status-error">Gravityリストの読み込みに失敗しました: ' + error.message + '</div>';
+            }
+        }
+
+        document.getElementById('gravity-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const gravityData = document.getElementById('gravity-list').value;
+            const gravityArray = gravityData.split('\n').filter(line => line.trim() !== '');
+            const statusDiv = document.getElementById('status-display');
+            
+            statusDiv.innerHTML = '<p>Gravityリストを保存中...</p>';
+            
+            try {
+                const response = await fetch('/gravity', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ gravity: gravityArray })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.status === 'success') {
+                    statusDiv.innerHTML = '<div class="status status-success">Gravityリストを正常に保存しました (' + gravityArray.length + ' 件)。</div>';
+                } else {
+                    statusDiv.innerHTML = '<div class="status status-error">Gravityリストの保存に失敗しました: ' + (result.message || 'Unknown error') + '</div>';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = '<div class="status status-error">通信エラー: ' + error.message + '</div>';
+            }
+        });
+
+        async function syncGravity() {
+            const statusDiv = document.getElementById('status-display');
+            statusDiv.innerHTML = '<p>同期を実行中...</p>';
+            
+            try {
+                const response = await fetch('/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.status === 'success') {
+                    statusDiv.innerHTML = '<div class="status status-success">同期が完了しました。</div>';
+                } else {
+                    statusDiv.innerHTML = '<div class="status status-error">同期に失敗しました: ' + (result.message || 'Unknown error') + '</div>';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = '<div class="status status-error">通信エラー: ' + error.message + '</div>';
+            }
+        }
+
+        loadGravity();
+    </script>
+</body>
+</html>
