@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -112,4 +113,96 @@ func TestUpdateData(t *testing.T) {
 
 	err := client.UpdateData(data)
 	assert.NoError(t, err)
+}
+
+func TestUpdateDataAlwaysErrors(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-key")
+
+	data := &PiholeData{
+		Adlists:   []string{"example.com"},
+		Blacklist: []string{"bad.com"},
+	}
+
+	err := client.UpdateData(data)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "500")
+}
+
+func TestGetDataInvalidJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-key")
+
+	_, err := client.GetData()
+	assert.Error(t, err)
+}
+
+func TestGetDataEmptyResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": []}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-key")
+
+	data, err := client.GetData()
+	require.NoError(t, err)
+
+	assert.Empty(t, data.Adlists)
+	assert.Empty(t, data.Blacklist)
+	assert.Empty(t, data.Whitelist)
+	assert.Empty(t, data.Groups)
+	assert.Empty(t, data.DNSRecords)
+	assert.Empty(t, data.DHCP)
+}
+
+func TestMakeRequestTimeout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(100 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status": "enabled"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-key")
+	client.client.Timeout = 10 * time.Millisecond
+
+	_, err := client.makeRequest("GET", "", nil)
+	assert.Error(t, err)
+}
+
+func TestUpdateDataNetworkError(t *testing.T) {
+	client := NewClient("http://invalid-host-that-does-not-exist.local", "test-key")
+
+	data := &PiholeData{
+		Adlists: []string{"example.com"},
+	}
+
+	err := client.UpdateData(data)
+	assert.Error(t, err)
+}
+
+func TestGetDataNetworkError(t *testing.T) {
+	client := NewClient("http://invalid-host-that-does-not-exist.local", "test-key")
+
+	_, err := client.GetData()
+	assert.Error(t, err)
+}
+
+func TestMakeRequestInvalidURL(t *testing.T) {
+	client := NewClient("invalid-url", "test-key")
+
+	_, err := client.makeRequest("GET", "", nil)
+	assert.Error(t, err)
 }
