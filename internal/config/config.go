@@ -31,9 +31,12 @@ type SyncItems struct {
 	Adlists    bool `yaml:"adlists"`
 	Blacklist  bool `yaml:"blacklist"`
 	Whitelist  bool `yaml:"whitelist"`
+	Regex      bool `yaml:"regex"`
 	Groups     bool `yaml:"groups"`
 	DNSRecords bool `yaml:"dns_records"`
 	DHCP       bool `yaml:"dhcp"`
+	Clients    bool `yaml:"clients"`
+	Settings   bool `yaml:"settings"`
 }
 
 type SyncTrigger struct {

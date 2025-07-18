@@ -1,0 +1,63 @@
+services:
+  pihole-master:
+    image: pihole/pihole:latest
+    container_name: pihole-master
+    environment:
+      TZ: 'Asia/Tokyo'
+      FTLCONF_webserver_api_password: 'masterpass'
+      PIHOLE_UID: 1000
+      PIHOLE_GID: 1000
+    ports:
+      - "20853:53/tcp"
+      - "20853:53/udp"
+      - "20801:80"
+    networks:
+      - pihole-net
+  pihole-slave1:
+    image: pihole/pihole:latest
+    container_name: pihole-slave1
+    environment:
+      TZ: 'Asia/Tokyo'
+      FTLCONF_webserver_api_password: 'slave1pass'
+      PIHOLE_UID: 1000
+      PIHOLE_GID: 1000
+    ports:
+      - "21853:53/tcp"
+      - "21853:53/udp"
+      - "20802:80"
+    networks:
+      - pihole-net
+    restart: unless-stopped
+  pihole-slave2:
+    image: pihole/pihole:latest
+    container_name: pihole-slave2
+    environment:
+      TZ: 'Asia/Tokyo'
+      FTLCONF_webserver_api_password: 'slave2pass'
+      PIHOLE_UID: 1000
+      PIHOLE_GID: 1000
+    ports:
+      - "22853:53/tcp"
+      - "22853:53/udp"
+      - "20803:80"
+    networks:
+      - pihole-net
+  # pihole-sync:
+  #   build: .
+  #   container_name: pihole-sync-test
+  #   depends_on:
+  #     - pihole-master
+  #     - pihole-slave1
+  #     - pihole-slave2
+  #   environment:
+  #     TZ: 'Asia/Tokyo'
+  #   ports:
+  #     - "22080:8080"
+  #   networks:
+  #     - pihole-net
+  #   volumes:
+  #     - ./config.yaml:/app/config.yaml
+  #   restart: unless-stopped
+networks:
+  pihole-net:
+    driver: bridge

@@ -62,9 +62,10 @@ func (s *Syncer) Sync() (*SyncResult, error) {
 
 	log.Println("Starting synchronization...")
 	
-	masterData, err := s.masterClient.GetData()
+	// Teleporter APIを使用してマスターからバックアップをダウンロード
+	masterBackup, err := s.masterClient.GetBackup()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get master data: %w", err)
+		return nil, fmt.Errorf("failed to get master backup: %w", err)
 	}
 
 	var details []SlaveResult
@@ -72,7 +73,7 @@ func (s *Syncer) Sync() (*SyncResult, error) {
 
 	for i, slaveClient := range s.slaveClients {
 		slave := s.config.Slaves[i]
-		result := s.syncSlave(slaveClient, slave, masterData)
+		result := s.syncSlaveWithBackup(slaveClient, slave, masterBackup)
 		details = append(details, result)
 		
 		if result.Result != "ok" {
@@ -95,6 +96,58 @@ func (s *Syncer) Sync() (*SyncResult, error) {
 	}
 
 	return syncResult, nil
+}
+
+func (s *Syncer) syncSlaveWithBackup(client *pihole.Client, slave config.SlaveConfig, masterBackup []byte) SlaveResult {
+	result := SlaveResult{
+		Host:   slave.Host,
+		Result: "ok",
+	}
+
+	// 設定に基づいてインポートオプションを生成
+	importOptions := s.generateImportOptions(slave.SyncItems)
+
+	retryCount := 0
+	maxRetries := s.config.SyncRetry.Count
+	if !s.config.SyncRetry.Enabled {
+		maxRetries = 0
+	}
+
+	for retryCount <= maxRetries {
+		err := client.RestoreBackupWithOptions(masterBackup, importOptions)
+		if err == nil {
+			log.Printf("Successfully synced slave %s using Teleporter API with selective import", slave.Host)
+			break
+		}
+
+		if retryCount == maxRetries {
+			result.Result = "error"
+			result.Error = err.Error()
+			log.Printf("Failed to sync slave %s after %d retries: %v", slave.Host, maxRetries, err)
+			break
+		}
+
+		retryCount++
+		log.Printf("Sync failed for slave %s, retrying (%d/%d): %v", slave.Host, retryCount, maxRetries, err)
+		time.Sleep(time.Duration(retryCount) * time.Second)
+	}
+
+	return result
+}
+
+// generateImportOptions converts SyncItems config to Pi-hole import options
+func (s *Syncer) generateImportOptions(syncItems config.SyncItems) map[string]bool {
+	return map[string]bool{
+		"adlists":     syncItems.Adlists,
+		"blacklist":   syncItems.Blacklist,
+		"whitelist":   syncItems.Whitelist,
+		"regex":       syncItems.Regex,
+		"groups":      syncItems.Groups,
+		"dns_records": syncItems.DNSRecords,
+		"dhcp":        syncItems.DHCP,
+		"clients":     syncItems.Clients,
+		"settings":    syncItems.Settings,
+	}
 }
 
 func (s *Syncer) syncSlave(client *pihole.Client, slave config.SlaveConfig, masterData *pihole.PiholeData) SlaveResult {
@@ -157,6 +210,7 @@ func (s *Syncer) filterDataForSlave(data *pihole.PiholeData, syncItems config.Sy
 	if syncItems.DHCP {
 		filtered.DHCP = data.DHCP
 	}
+	// Note: regex, clients, settings are handled by Teleporter API import options
 
 	return filtered
 }

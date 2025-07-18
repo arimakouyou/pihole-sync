@@ -1,25 +1,31 @@
 master:
-  host: "http://pihole-master.local"
-  password: "xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  host: "http://localhost:20801"
+  password: "masterpass"
 slaves:
-  - host: "http://pihole-slave1.local"
-    password: "yyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+  - host: "http://localhost:20802"
+    password: "slave1pass"
     sync_items:
       adlists: true
       blacklist: true
       whitelist: false
+      regex: true
       groups: true
       dns_records: false
       dhcp: false
-  - host: "http://pihole-slave2.local"
-    password: "zzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+      clients: true
+      settings: false
+  - host: "http://localhost:20803"
+    password: "slave2pass"
     sync_items:
       adlists: true
       blacklist: false
       whitelist: true
+      regex: true
       groups: true
       dns_records: true
       dhcp: false
+      clients: true
+      settings: false
 sync_trigger:
   schedule: "0 3 * * *"
   api_call: true

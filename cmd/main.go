@@ -16,7 +16,7 @@ func main() {
 
 	cfg, err := config.LoadConfig("config.yaml")
 	if err != nil {
-		log.Printf("設定ファイルの読み込みに失敗しました: %v", err)
+		log.Fatalf("設定ファイルの読み込みに失敗しました: %v", err)
 		cfg = &config.Config{}
 	}
 
