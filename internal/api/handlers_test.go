@@ -105,7 +105,7 @@ func TestGravityGetHandlerText(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Equal(t, "text/plain", rr.Header().Get("Content-Type"))
 
-	expected := "address=/ads.example.com/0.0.0.0\naddress=/tracker.example.com/0.0.0.0\n"
+	expected := "0.0.0.0 ads.example.com\n0.0.0.0 tracker.example.com\n"
 	assert.Equal(t, expected, rr.Body.String())
 }
 
@@ -138,7 +138,7 @@ func TestGravityPostHandlerJSON(t *testing.T) {
 func TestGravityPostHandlerText(t *testing.T) {
 	server := createTestServer()
 
-	textData := "address=/test.com/0.0.0.0\naddress=/example.com/0.0.0.0\n"
+	textData := "0.0.0.0 test.com\n0.0.0.0 example.com\n"
 	req, err := http.NewRequest("POST", "/gravity", strings.NewReader(textData))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "text/plain")

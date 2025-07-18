@@ -113,7 +113,7 @@ func (s *Server) GravityGetHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.Header().Set("Content-Type", "text/plain")
 		for _, entry := range s.gravity {
-			fmt.Fprintf(w, "address=/%s/0.0.0.0\n", entry)
+			fmt.Fprintf(w, "0.0.0.0 %s\n", entry)
 		}
 	}
 }
@@ -153,9 +153,21 @@ func (s *Server) GravityPostHandler(w http.ResponseWriter, r *http.Request) {
 		
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
-			if line != "" && strings.HasPrefix(line, "address=/") && strings.HasSuffix(line, "/0.0.0.0") {
-				domain := strings.TrimPrefix(line, "address=/")
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			
+			var domain string
+			if strings.HasPrefix(line, "address=/") && strings.HasSuffix(line, "/0.0.0.0") {
+				domain = strings.TrimPrefix(line, "address=/")
 				domain = strings.TrimSuffix(domain, "/0.0.0.0")
+			} else if strings.HasPrefix(line, "0.0.0.0 ") {
+				domain = strings.TrimPrefix(line, "0.0.0.0 ")
+			} else {
+				domain = line
+			}
+			
+			if domain != "" {
 				s.gravity = append(s.gravity, domain)
 			}
 		}
@@ -379,7 +391,7 @@ func (s *Server) GravityHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		gravityText := ""
 		for _, entry := range s.gravity {
-			gravityText += fmt.Sprintf("address=/%s/0.0.0.0\n", entry)
+			gravityText += fmt.Sprintf("0.0.0.0 %s\n", entry)
 		}
 
 		html := fmt.Sprintf(`<!DOCTYPE html>
