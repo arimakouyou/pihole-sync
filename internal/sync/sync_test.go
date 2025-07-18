@@ -13,13 +13,13 @@ import (
 func TestNewSyncer(t *testing.T) {
 	cfg := &config.Config{
 		Master: config.MasterConfig{
-			Host:   "http://master.local",
-			APIKey: "master-key",
+			Host:     "http://master.local",
+			Password: "master-password",
 		},
 		Slaves: []config.SlaveConfig{
 			{
-				Host:   "http://slave.local",
-				APIKey: "slave-key",
+				Host:     "http://slave.local",
+				Password: "slave-password",
 			},
 		},
 	}
@@ -125,13 +125,13 @@ func TestSyncWithRetryLogic(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &config.Config{
 				Master: config.MasterConfig{
-					Host:   "http://invalid-master.local",
-					APIKey: "test-key",
+					Host:     "http://invalid-master.local",
+					Password: "test-password",
 				},
 				Slaves: []config.SlaveConfig{
 					{
-						Host:   "http://invalid-slave.local",
-						APIKey: "test-key",
+						Host:     "http://invalid-slave.local",
+						Password: "test-password",
 						SyncItems: config.SyncItems{
 							Adlists: true,
 						},
@@ -159,8 +159,8 @@ func TestSyncWithRetryLogic(t *testing.T) {
 func TestSyncWithNilMasterData(t *testing.T) {
 	cfg := &config.Config{
 		Master: config.MasterConfig{
-			Host:   "http://invalid-master.local",
-			APIKey: "test-key",
+			Host:     "http://invalid-master.local",
+			Password: "test-password",
 		},
 	}
 

@@ -1,9 +1,9 @@
 master:
   host: "http://pihole-master.local"
-  api_key: "xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  password: "xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 slaves:
   - host: "http://pihole-slave1.local"
-    api_key: "yyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+    password: "yyyyyyyyyyyyyyyyyyyyyyyyyyyy"
     sync_items:
       adlists: true
       blacklist: true
@@ -12,7 +12,7 @@ slaves:
       dns_records: false
       dhcp: false
   - host: "http://pihole-slave2.local"
-    api_key: "zzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+    password: "zzzzzzzzzzzzzzzzzzzzzzzzzzzz"
     sync_items:
       adlists: true
       blacklist: false

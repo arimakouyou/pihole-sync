@@ -1,6 +1,6 @@
 master:
     host: http://restored-master.local
-    api_key: restored-key
+    password: restored-password
 slaves: []
 sync_trigger:
     schedule: ""

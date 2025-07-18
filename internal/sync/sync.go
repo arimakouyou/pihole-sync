@@ -30,11 +30,11 @@ type SlaveResult struct {
 }
 
 func NewSyncer(cfg *config.Config) *Syncer {
-	masterClient := pihole.NewClient(cfg.Master.Host, cfg.Master.APIKey)
+	masterClient := pihole.NewClient(cfg.Master.Host, cfg.Master.Password)
 	
 	var slaveClients []*pihole.Client
 	for _, slave := range cfg.Slaves {
-		slaveClients = append(slaveClients, pihole.NewClient(slave.Host, slave.APIKey))
+		slaveClients = append(slaveClients, pihole.NewClient(slave.Host, slave.Password))
 	}
 
 	return &Syncer{

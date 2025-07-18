@@ -27,10 +27,10 @@ Pi-hole同期システム - 複数台のPi-holeの設定を同期するための
 ```yaml
 master:
   host: "http://pihole-master.local"
-  api_key: "your-master-api-key"
+  password: "your-master-application-password"
 slaves:
   - host: "http://pihole-slave1.local"
-    api_key: "your-slave1-api-key"
+    password: "your-slave1-application-password"
     sync_items:
       adlists: true
       blacklist: true

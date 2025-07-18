@@ -11,45 +11,66 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
-	client := NewClient("http://test.local", "test-key")
+	client := NewClient("http://test.local", "test-password")
 
 	assert.Equal(t, "http://test.local", client.BaseURL)
-	assert.Equal(t, "test-key", client.APIKey)
+	assert.Equal(t, "test-password", client.Password)
 	assert.NotNil(t, client.client)
 }
 
 func TestMakeRequest(t *testing.T) {
+	authCalled := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Contains(t, r.URL.RawQuery, "auth=test-key")
+		if r.URL.Path == "/api/auth" {
+			authCalled = true
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"session_id": "test-sid", "csrf_token": "test-csrf"}`))
+			return
+		}
+		assert.Contains(t, r.URL.RawQuery, "sid=test-sid")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status": "enabled"}`))
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "test-key")
+	client := NewClient(server.URL, "test-password")
 
 	body, err := client.makeRequest("GET", "", nil)
 	require.NoError(t, err)
 
+	assert.True(t, authCalled)
 	assert.Contains(t, string(body), "status")
+	assert.Equal(t, "test-sid", client.SID)
+	assert.Equal(t, "test-csrf", client.CSRFToken)
 }
 
 func TestMakeRequestError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/auth" {
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte("Unauthorized"))
+			return
+		}
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Internal Server Error"))
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "test-key")
+	client := NewClient(server.URL, "test-password")
 
 	_, err := client.makeRequest("GET", "", nil)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "500")
+	assert.Contains(t, err.Error(), "authentication failed")
 }
 
 func TestGetData(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/auth" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"session_id": "test-sid", "csrf_token": "test-csrf"}`))
+			return
+		}
+		
 		query := r.URL.Query()
 		list := query.Get("list")
 		action := query.Get("action")
@@ -72,7 +93,7 @@ func TestGetData(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "test-key")
+	client := NewClient(server.URL, "test-password")
 
 	data, err := client.GetData()
 	require.NoError(t, err)
@@ -99,12 +120,17 @@ func TestGetData(t *testing.T) {
 
 func TestUpdateData(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/auth" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"session_id": "test-sid", "csrf_token": "test-csrf"}`))
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status": "success"}`))
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "test-key")
+	client := NewClient(server.URL, "test-password")
 
 	data := &PiholeData{
 		Adlists:   []string{"example.com"},
@@ -117,12 +143,17 @@ func TestUpdateData(t *testing.T) {
 
 func TestUpdateDataAlwaysErrors(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/auth" {
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte("Unauthorized"))
+			return
+		}
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Internal Server Error"))
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "test-key")
+	client := NewClient(server.URL, "test-password")
 
 	data := &PiholeData{
 		Adlists:   []string{"example.com"},
@@ -131,17 +162,22 @@ func TestUpdateDataAlwaysErrors(t *testing.T) {
 
 	err := client.UpdateData(data)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "500")
+	assert.Contains(t, err.Error(), "authentication failed")
 }
 
 func TestGetDataInvalidJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/auth" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"session_id": "test-sid", "csrf_token": "test-csrf"}`))
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("invalid json"))
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "test-key")
+	client := NewClient(server.URL, "test-password")
 
 	_, err := client.GetData()
 	assert.Error(t, err)
@@ -149,12 +185,17 @@ func TestGetDataInvalidJSON(t *testing.T) {
 
 func TestGetDataEmptyResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/auth" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"session_id": "test-sid", "csrf_token": "test-csrf"}`))
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"data": []}`))
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "test-key")
+	client := NewClient(server.URL, "test-password")
 
 	data, err := client.GetData()
 	require.NoError(t, err)
@@ -175,7 +216,7 @@ func TestMakeRequestTimeout(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL, "test-key")
+	client := NewClient(server.URL, "test-password")
 	client.client.Timeout = 10 * time.Millisecond
 
 	_, err := client.makeRequest("GET", "", nil)
@@ -183,7 +224,7 @@ func TestMakeRequestTimeout(t *testing.T) {
 }
 
 func TestUpdateDataNetworkError(t *testing.T) {
-	client := NewClient("http://invalid-host-that-does-not-exist.local", "test-key")
+	client := NewClient("http://invalid-host-that-does-not-exist.local", "test-password")
 
 	data := &PiholeData{
 		Adlists: []string{"example.com"},
@@ -194,15 +235,67 @@ func TestUpdateDataNetworkError(t *testing.T) {
 }
 
 func TestGetDataNetworkError(t *testing.T) {
-	client := NewClient("http://invalid-host-that-does-not-exist.local", "test-key")
+	client := NewClient("http://invalid-host-that-does-not-exist.local", "test-password")
 
 	_, err := client.GetData()
 	assert.Error(t, err)
 }
 
 func TestMakeRequestInvalidURL(t *testing.T) {
-	client := NewClient("invalid-url", "test-key")
+	client := NewClient("invalid-url", "test-password")
 
 	_, err := client.makeRequest("GET", "", nil)
 	assert.Error(t, err)
+}
+
+func TestAuthenticate(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/auth" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"session_id": "test-sid", "csrf_token": "test-csrf"}`))
+			return
+		}
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-password")
+
+	err := client.authenticate()
+	assert.NoError(t, err)
+	assert.Equal(t, "test-sid", client.SID)
+	assert.Equal(t, "test-csrf", client.CSRFToken)
+}
+
+func TestAuthenticateFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/auth" {
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte("Unauthorized"))
+			return
+		}
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "wrong-password")
+
+	err := client.authenticate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "authentication failed")
+}
+
+func TestAuthenticateInvalidResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/auth" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"invalid": "response"}`))
+			return
+		}
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-password")
+
+	err := client.authenticate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "session_id not found")
 }

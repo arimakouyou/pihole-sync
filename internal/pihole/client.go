@@ -12,9 +12,11 @@ import (
 )
 
 type Client struct {
-	BaseURL string
-	APIKey  string
-	client  *http.Client
+	BaseURL   string
+	Password  string
+	SID       string
+	CSRFToken string
+	client    *http.Client
 }
 
 type PiholeData struct {
@@ -26,10 +28,10 @@ type PiholeData struct {
 	DHCP       []string `json:"dhcp"`
 }
 
-func NewClient(baseURL, apiKey string) *Client {
+func NewClient(baseURL, password string) *Client {
 	return &Client{
-		BaseURL: baseURL,
-		APIKey:  apiKey,
+		BaseURL:  baseURL,
+		Password: password,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -78,6 +80,53 @@ func (c *Client) GetData() (*PiholeData, error) {
 	return data, nil
 }
 
+func (c *Client) authenticate() error {
+	authURL := fmt.Sprintf("%s/api/auth", c.BaseURL)
+	
+	payload := url.Values{}
+	payload.Set("password", c.Password)
+	
+	req, err := http.NewRequest("POST", authURL, bytes.NewBufferString(payload.Encode()))
+	if err != nil {
+		return fmt.Errorf("failed to create auth request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to authenticate: %w", err)
+	}
+	defer resp.Body.Close()
+	
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read auth response: %w", err)
+	}
+	
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("authentication failed with status %d: %s", resp.StatusCode, string(body))
+	}
+	
+	var authResp map[string]interface{}
+	if err := json.Unmarshal(body, &authResp); err != nil {
+		return fmt.Errorf("failed to parse auth response: %w", err)
+	}
+	
+	if sid, ok := authResp["session_id"].(string); ok {
+		c.SID = sid
+	} else {
+		return fmt.Errorf("session_id not found in auth response")
+	}
+	
+	if csrf, ok := authResp["csrf_token"].(string); ok {
+		c.CSRFToken = csrf
+	} else {
+		return fmt.Errorf("csrf_token not found in auth response")
+	}
+	
+	return nil
+}
+
 func (c *Client) UpdateData(data *PiholeData) error {
 	if err := c.updateAdlists(data.Adlists); err != nil {
 		return fmt.Errorf("failed to update adlists: %w", err)
@@ -107,25 +156,33 @@ func (c *Client) UpdateData(data *PiholeData) error {
 }
 
 func (c *Client) makeRequest(method, endpoint string, params url.Values) ([]byte, error) {
+	if c.SID == "" {
+		if err := c.authenticate(); err != nil {
+			return nil, fmt.Errorf("authentication failed: %w", err)
+		}
+	}
+	
 	reqURL := fmt.Sprintf("%s/admin/api.php", c.BaseURL)
 	
 	if params == nil {
 		params = url.Values{}
 	}
-	params.Set("auth", c.APIKey)
 	
 	var req *http.Request
 	var err error
 	
 	if method == "GET" {
+		params.Set("sid", c.SID)
 		if len(params) > 0 {
 			reqURL += "?" + params.Encode()
 		}
 		req, err = http.NewRequest(method, reqURL, nil)
 	} else {
+		params.Set("sid", c.SID)
 		req, err = http.NewRequest(method, reqURL, bytes.NewBufferString(params.Encode()))
 		if err == nil {
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Set("X-FTL-CSRF", c.CSRFToken)
 		}
 	}
 	

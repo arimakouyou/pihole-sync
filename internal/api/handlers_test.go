@@ -17,13 +17,13 @@ import (
 func createTestServer() *Server {
 	cfg := &config.Config{
 		Master: config.MasterConfig{
-			Host:   "http://test-master.local",
-			APIKey: "test-key",
+			Host:     "http://test-master.local",
+			Password: "test-password",
 		},
 		Slaves: []config.SlaveConfig{
 			{
-				Host:   "http://test-slave.local",
-				APIKey: "test-slave-key",
+				Host:     "http://test-slave.local",
+				Password: "test-slave-password",
 				SyncItems: config.SyncItems{
 					Adlists:   true,
 					Blacklist: true,
@@ -184,8 +184,8 @@ func TestRestoreHandler(t *testing.T) {
 	backupData := BackupData{
 		Config: &config.Config{
 			Master: config.MasterConfig{
-				Host:   "http://restored-master.local",
-				APIKey: "restored-key",
+				Host:     "http://restored-master.local",
+				Password: "restored-password",
 			},
 		},
 		Gravity: []string{"restored.com"},

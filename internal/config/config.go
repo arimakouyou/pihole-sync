@@ -17,13 +17,13 @@ type Config struct {
 }
 
 type MasterConfig struct {
-	Host   string `yaml:"host"`
-	APIKey string `yaml:"api_key"`
+	Host     string `yaml:"host"`
+	Password string `yaml:"password"`
 }
 
 type SlaveConfig struct {
 	Host      string    `yaml:"host"`
-	APIKey    string    `yaml:"api_key"`
+	Password  string    `yaml:"password"`
 	SyncItems SyncItems `yaml:"sync_items"`
 }
 

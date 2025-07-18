@@ -13,10 +13,10 @@ func TestLoadConfig(t *testing.T) {
 	configData := `
 master:
   host: "http://test-master.local"
-  api_key: "test-master-key"
+  password: "test-master-password"
 slaves:
   - host: "http://test-slave.local"
-    api_key: "test-slave-key"
+    password: "test-slave-password"
     sync_items:
       adlists: true
       blacklist: false
@@ -47,10 +47,10 @@ sync_retry:
 	require.NoError(t, err)
 
 	assert.Equal(t, "http://test-master.local", config.Master.Host)
-	assert.Equal(t, "test-master-key", config.Master.APIKey)
+	assert.Equal(t, "test-master-password", config.Master.Password)
 	assert.Len(t, config.Slaves, 1)
 	assert.Equal(t, "http://test-slave.local", config.Slaves[0].Host)
-	assert.Equal(t, "test-slave-key", config.Slaves[0].APIKey)
+	assert.Equal(t, "test-slave-password", config.Slaves[0].Password)
 	assert.True(t, config.Slaves[0].SyncItems.Adlists)
 	assert.False(t, config.Slaves[0].SyncItems.Blacklist)
 	assert.True(t, config.Slaves[0].SyncItems.Whitelist)
@@ -70,8 +70,8 @@ func TestLoadConfigFileNotFound(t *testing.T) {
 func TestSaveConfig(t *testing.T) {
 	config := &Config{
 		Master: MasterConfig{
-			Host:   "http://test.local",
-			APIKey: "test-key",
+			Host:     "http://test.local",
+			Password: "test-password",
 		},
 		Logging: Logging{
 			Level: "INFO",
@@ -91,7 +91,7 @@ func TestSaveConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, config.Master.Host, loadedConfig.Master.Host)
-	assert.Equal(t, config.Master.APIKey, loadedConfig.Master.APIKey)
+	assert.Equal(t, config.Master.Password, loadedConfig.Master.Password)
 	assert.Equal(t, config.Logging.Level, loadedConfig.Logging.Level)
 	assert.Equal(t, config.Logging.Debug, loadedConfig.Logging.Debug)
 }
@@ -100,10 +100,10 @@ func TestSyncItemsAllFalse(t *testing.T) {
 	configData := `
 master:
   host: "http://test-master.local"
-  api_key: "test-master-key"
+  password: "test-master-password"
 slaves:
   - host: "http://test-slave.local"
-    api_key: "test-slave-key"
+    password: "test-slave-password"
     sync_items:
       adlists: false
       blacklist: false
@@ -135,10 +135,10 @@ func TestSyncItemsAllTrue(t *testing.T) {
 	configData := `
 master:
   host: "http://test-master.local"
-  api_key: "test-master-key"
+  password: "test-master-password"
 slaves:
   - host: "http://test-slave.local"
-    api_key: "test-slave-key"
+    password: "test-slave-password"
     sync_items:
       adlists: true
       blacklist: true
@@ -170,10 +170,10 @@ func TestSyncItemsMixed(t *testing.T) {
 	configData := `
 master:
   host: "http://test-master.local"
-  api_key: "test-master-key"
+  password: "test-master-password"
 slaves:
   - host: "http://test-slave.local"
-    api_key: "test-slave-key"
+    password: "test-slave-password"
     sync_items:
       adlists: true
       blacklist: false
@@ -205,7 +205,7 @@ func TestSyncRetryNegativeCount(t *testing.T) {
 	configData := `
 master:
   host: "http://test-master.local"
-  api_key: "test-master-key"
+  password: "test-master-password"
 sync_retry:
   enabled: true
   count: -1
@@ -238,7 +238,7 @@ func TestSyncRetryExtremeValues(t *testing.T) {
 			configData := fmt.Sprintf(`
 master:
   host: "http://test-master.local"
-  api_key: "test-master-key"
+  password: "test-master-password"
 sync_retry:
   enabled: true
   count: %d
@@ -263,7 +263,7 @@ func TestEmptyMasterFields(t *testing.T) {
 	configData := `
 master:
   host: ""
-  api_key: ""
+  password: ""
 `
 	tmpFile, err := os.CreateTemp("", "config-test-*.yaml")
 	require.NoError(t, err)
@@ -277,17 +277,17 @@ master:
 	require.NoError(t, err)
 
 	assert.Empty(t, config.Master.Host)
-	assert.Empty(t, config.Master.APIKey)
+	assert.Empty(t, config.Master.Password)
 }
 
 func TestEmptySlaveFields(t *testing.T) {
 	configData := `
 master:
   host: "http://test-master.local"
-  api_key: "test-master-key"
+  password: "test-master-password"
 slaves:
   - host: ""
-    api_key: ""
+    password: ""
 `
 	tmpFile, err := os.CreateTemp("", "config-test-*.yaml")
 	require.NoError(t, err)
@@ -302,14 +302,14 @@ slaves:
 
 	assert.Len(t, config.Slaves, 1)
 	assert.Empty(t, config.Slaves[0].Host)
-	assert.Empty(t, config.Slaves[0].APIKey)
+	assert.Empty(t, config.Slaves[0].Password)
 }
 
 func TestInvalidYAML(t *testing.T) {
 	configData := `
 master:
   host: "http://test-master.local"
-  api_key: "test-master-key"
+  password: "test-master-password"
 invalid_yaml: [
 `
 	tmpFile, err := os.CreateTemp("", "config-test-*.yaml")
