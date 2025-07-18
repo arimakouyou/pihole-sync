@@ -259,7 +259,7 @@ func (s *Server) IndexHandler(w http.ResponseWriter, r *http.Request) {
         <div class="button-grid">
             <button class="btn" onclick="performSync()">同期実行</button>
             <a href="/config" class="btn">設定編集</a>
-            <a href="/gravity" class="btn">Gravity編集</a>
+            <a href="/gravity/edit" class="btn">Gravity編集</a>
             <a href="/backup" class="btn">バックアップ</a>
             <button class="btn" onclick="showRestore()">復元</button>
         </div>
