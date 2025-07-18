@@ -64,7 +64,14 @@ func (s *Server) SyncHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		metrics.IncrementError()
 		s.notifier.NotifyError("同期エラー", err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		response := map[string]interface{}{
+			"status": "error",
+			"message": err.Error(),
+		}
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
