@@ -299,3 +299,112 @@ func TestAuthenticateInvalidResponse(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "session_id not found")
 }
+
+func TestAuthenticateInvalidJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/auth" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`invalid json`))
+			return
+		}
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-password")
+
+	err := client.authenticate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse auth response")
+}
+
+func TestAuthenticateMissingCSRFToken(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/auth" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"session_id": "test-sid"}`))
+			return
+		}
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-password")
+
+	err := client.authenticate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "csrf_token not found")
+}
+
+func TestMakeRequestWithExistingSession(t *testing.T) {
+	authCallCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/auth" {
+			authCallCount++
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"session_id": "test-sid", "csrf_token": "test-csrf"}`))
+			return
+		}
+		assert.Contains(t, r.URL.RawQuery, "sid=test-sid")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status": "enabled"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-password")
+	client.SID = "test-sid"
+	client.CSRFToken = "test-csrf"
+
+	_, err := client.makeRequest("GET", "", nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, 0, authCallCount, "Should not authenticate when session already exists")
+}
+
+func TestMakeRequestPOSTWithCSRF(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/auth" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"session_id": "test-sid", "csrf_token": "test-csrf"}`))
+			return
+		}
+		
+		if r.Method == "POST" {
+			assert.Equal(t, "test-csrf", r.Header.Get("X-FTL-CSRF"))
+		}
+		
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status": "success"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-password")
+
+	_, err := client.makeRequest("POST", "", nil)
+	require.NoError(t, err)
+}
+
+func TestClientWithEmptyPassword(t *testing.T) {
+	client := NewClient("http://test.local", "")
+	
+	assert.Equal(t, "", client.Password)
+	assert.Equal(t, "http://test.local", client.BaseURL)
+}
+
+func TestUpdateDataWithEmptyData(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/auth" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"session_id": "test-sid", "csrf_token": "test-csrf"}`))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status": "success"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-password")
+
+	data := &PiholeData{}
+
+	err := client.UpdateData(data)
+	assert.NoError(t, err)
+}

@@ -135,6 +135,10 @@ func (s *Syncer) syncSlave(client *pihole.Client, slave config.SlaveConfig, mast
 func (s *Syncer) filterDataForSlave(data *pihole.PiholeData, syncItems config.SyncItems) *pihole.PiholeData {
 	filtered := &pihole.PiholeData{}
 
+	if data == nil {
+		return filtered
+	}
+
 	if syncItems.Adlists {
 		filtered.Adlists = data.Adlists
 	}

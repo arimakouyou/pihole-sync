@@ -201,3 +201,107 @@ func TestFilterDataForSlaveAllEnabled(t *testing.T) {
 	assert.Equal(t, []string{"dns1", "dns2"}, filtered.DNSRecords)
 	assert.Equal(t, []string{"dhcp1", "dhcp2"}, filtered.DHCP)
 }
+
+func TestSyncWithMultipleSlaves(t *testing.T) {
+	cfg := &config.Config{
+		Master: config.MasterConfig{
+			Host:     "http://invalid-master.local",
+			Password: "test-password",
+		},
+		Slaves: []config.SlaveConfig{
+			{
+				Host:     "http://invalid-slave1.local",
+				Password: "test-password1",
+				SyncItems: config.SyncItems{
+					Adlists:   true,
+					Blacklist: false,
+				},
+			},
+			{
+				Host:     "http://invalid-slave2.local",
+				Password: "test-password2",
+				SyncItems: config.SyncItems{
+					Adlists:   false,
+					Blacklist: true,
+				},
+			},
+		},
+		SyncRetry: config.SyncRetry{
+			Enabled: false,
+			Count:   0,
+		},
+	}
+
+	syncer := NewSyncer(cfg)
+	_, err := syncer.Sync()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get master data")
+}
+
+func TestSyncRateLimiting(t *testing.T) {
+	cfg := &config.Config{
+		Master: config.MasterConfig{
+			Host:     "http://test-master.local",
+			Password: "test-password",
+		},
+	}
+
+	syncer := NewSyncer(cfg)
+	
+	syncer.lastSync = time.Now().Add(-5 * time.Second)
+	assert.False(t, syncer.CanSync(), "Should not allow sync within 10 seconds")
+	
+	result, err := syncer.Sync()
+	assert.NoError(t, err)
+	assert.False(t, result.Success)
+	assert.Contains(t, result.Message, "10秒以内に呼び出し済み")
+}
+
+func TestFilterDataForSlaveWithNilMasterData(t *testing.T) {
+	cfg := &config.Config{}
+	syncer := NewSyncer(cfg)
+
+	syncItems := config.SyncItems{
+		Adlists:   true,
+		Blacklist: true,
+	}
+
+	filtered := syncer.filterDataForSlave(nil, syncItems)
+	assert.NotNil(t, filtered)
+	assert.Empty(t, filtered.Adlists)
+	assert.Empty(t, filtered.Blacklist)
+}
+
+func TestSyncWithDisabledRetry(t *testing.T) {
+	cfg := &config.Config{
+		Master: config.MasterConfig{
+			Host:     "http://invalid-master.local",
+			Password: "test-password",
+		},
+		Slaves: []config.SlaveConfig{
+			{
+				Host:     "http://invalid-slave.local",
+				Password: "test-password",
+				SyncItems: config.SyncItems{
+					Adlists: true,
+				},
+			},
+		},
+		SyncRetry: config.SyncRetry{
+			Enabled: false,
+			Count:   5,
+		},
+	}
+
+	syncer := NewSyncer(cfg)
+	_, err := syncer.Sync()
+	assert.Error(t, err)
+}
+
+func TestGetLastSyncInitialValue(t *testing.T) {
+	cfg := &config.Config{}
+	syncer := NewSyncer(cfg)
+	
+	lastSync := syncer.GetLastSync()
+	assert.True(t, lastSync.IsZero(), "Initial last sync should be zero time")
+}
