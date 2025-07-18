@@ -24,14 +24,16 @@ func main() {
 
 	r := mux.NewRouter()
 
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("web/static/"))))
+
 	r.HandleFunc("/", server.IndexHandler)
 	r.HandleFunc("/sync", server.SyncHandler)
 	r.HandleFunc("/gravity", server.GravityGetHandler).Methods("GET")
 	r.HandleFunc("/gravity", server.GravityPostHandler).Methods("POST")
+	r.HandleFunc("/gravity/edit", server.GravityHandler)
 	r.HandleFunc("/backup", server.BackupHandler)
 	r.HandleFunc("/restore", server.RestoreHandler)
 	r.HandleFunc("/config", server.ConfigHandler)
-	r.PathPrefix("/gravity").HandlerFunc(server.GravityHandler)
 	r.Handle("/metrics", promhttp.Handler())
 
 	log.Println("サーバーをポート8080で起動中...")
