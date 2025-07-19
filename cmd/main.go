@@ -33,7 +33,9 @@ func main() {
 	r.HandleFunc("/gravity/edit", server.GravityHandler)
 	r.HandleFunc("/backup", server.BackupHandler)
 	r.HandleFunc("/restore", server.RestoreHandler)
-	r.HandleFunc("/config", server.ConfigHandler)
+	r.HandleFunc("/config", server.ConfigHandler).Methods("GET")
+	r.HandleFunc("/api/config", server.ConfigAPIHandler).Methods("GET")
+	r.HandleFunc("/config", server.ConfigSaveHandler).Methods("POST")
 	r.Handle("/metrics", promhttp.Handler())
 
 	log.Println("サーバーをポート8080で起動中...")

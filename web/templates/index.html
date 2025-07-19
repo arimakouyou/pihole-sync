@@ -3,228 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pi-hole Sync 管理画面</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .header {
-            background-color: #2c3e50;
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-        .card {
-            background-color: white;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .button-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-        .btn {
-            padding: 15px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            text-decoration: none;
-            text-align: center;
-            display: inline-block;
-            transition: background-color 0.3s;
-        }
-        .btn-primary {
-            background-color: #3498db;
-            color: white;
-        }
-        .btn-primary:hover {
-            background-color: #2980b9;
-        }
-        .btn-success {
-            background-color: #27ae60;
-            color: white;
-        }
-        .btn-success:hover {
-            background-color: #229954;
-        }
-        .btn-warning {
-            background-color: #f39c12;
-            color: white;
-        }
-        .btn-warning:hover {
-            background-color: #e67e22;
-        }
-        .btn-info {
-            background-color: #17a2b8;
-            color: white;
-        }
-        .btn-info:hover {
-            background-color: #138496;
-        }
-        .status {
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 20px;
-        }
-        .status-success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .status-error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-    </style>
+    <title>Pi-hole Sync</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div class="header">
         <h1>Pi-hole Sync 管理画面</h1>
-        <p>複数台のPi-holeの設定を同期するための管理システム</p>
+        <p>Pi-holeの同期を管理します</p>
     </div>
 
     <div class="card">
-        <h2>主要機能</h2>
+        <h2>操作メニュー</h2>
         <div class="button-grid">
-            <button class="btn btn-primary" onclick="syncNow()">即時同期実行</button>
-            <a href="/config" class="btn btn-info">設定編集</a>
-            <a href="/gravity/edit" class="btn btn-warning">Gravity編集</a>
-            <a href="/backup" class="btn btn-success">バックアップ</a>
-        </div>
-        
-        <div>
-            <label for="restore-file">復元ファイル:</label>
-            <input type="file" id="restore-file" accept=".json">
-            <button class="btn btn-warning" onclick="restoreConfig()">復元実行</button>
+            <button class="btn btn-primary" onclick="performSync()">同期実行</button>
+            <a href="/config" class="btn btn-success">設定編集</a>
+            <a href="/gravity/edit" class="btn btn-success">Gravity編集</a>
+            <a href="/backup" class="btn btn-info">バックアップ</a>
+            <button class="btn btn-warning" onclick="showRestore()">復元</button>
         </div>
     </div>
 
+    <div id="restore-section" class="card" style="display: none;">
+        <h2>設定・Gravityの復元</h2>
+        <div class="form-group">
+            <label for="restore-file">バックアップファイル (.json):</label>
+            <input type="file" id="restore-file" accept=".json" class="form-control">
+        </div>
+        <button class="btn btn-danger" onclick="performRestore()">復元実行</button>
+    </div>
+
     <div class="card">
-        <h2>システム状態</h2>
+        <h2>操作状態</h2>
         <div id="status-display">
-            <p>システムは正常に動作しています。</p>
-        </div>
-    </div>
-
-    <div class="card">
-        <h2>最近のログ</h2>
-        <div id="log-display" style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace; max-height: 300px; overflow-y: auto;">
-            <p>ログ情報はここに表示されます...</p>
+            <p>待機中...</p>
         </div>
     </div>
 
     <script>
-        async function syncNow() {
+        function performSync() {
             const statusDiv = document.getElementById('status-display');
             statusDiv.innerHTML = '<p>同期を実行中...</p>';
-            
-            try {
-                const response = await fetch('/sync', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
+            fetch('/sync', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        statusDiv.innerHTML = '<div class="status status-success">同期が完了しました: ' + data.message + '</div>';
+                    } else {
+                        statusDiv.innerHTML = '<div class="status status-error">同期に失敗しました: ' + data.message + '</div>';
                     }
+                })
+                .catch(error => {
+                    statusDiv.innerHTML = '<div class="status status-error">通信エラー: ' + error.message + '</div>';
                 });
-                
-                const result = await response.json();
-                
-                if (response.ok && result.status === 'success') {
-                    statusDiv.innerHTML = `
-                        <div class="status status-success">
-                            <strong>同期完了:</strong> ${result.message}<br>
-                            <strong>実行時刻:</strong> ${new Date(result.synced_at).toLocaleString('ja-JP')}
-                        </div>
-                    `;
-                } else {
-                    statusDiv.innerHTML = `
-                        <div class="status status-error">
-                            <strong>同期エラー:</strong> ${result.message || 'Unknown error'}
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                statusDiv.innerHTML = `
-                    <div class="status status-error">
-                        <strong>通信エラー:</strong> ${error.message}
-                    </div>
-                `;
-            }
         }
 
-        async function restoreConfig() {
+        function showRestore() {
+            document.getElementById('restore-section').style.display = 'block';
+        }
+
+        function performRestore() {
             const fileInput = document.getElementById('restore-file');
             const file = fileInput.files[0];
-            
             if (!file) {
-                alert('復元するファイルを選択してください。');
+                alert('ファイルを選択してください');
                 return;
             }
-            
-            const statusDiv = document.getElementById('status-display');
-            statusDiv.innerHTML = '<p>設定を復元中...</p>';
-            
-            try {
-                const formData = new FormData();
-                formData.append('file', file);
-                
-                const response = await fetch('/restore', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const result = await response.json();
-                
-                if (response.ok && result.status === 'success') {
-                    statusDiv.innerHTML = `
-                        <div class="status status-success">
-                            <strong>復元完了:</strong> ${result.message}
-                        </div>
-                    `;
-                } else {
-                    statusDiv.innerHTML = `
-                        <div class="status status-error">
-                            <strong>復元エラー:</strong> ${result.message || 'Unknown error'}
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                statusDiv.innerHTML = `
-                    <div class="status status-error">
-                        <strong>通信エラー:</strong> ${error.message}
-                    </div>
-                `;
-            }
-        }
 
-        setInterval(async () => {
-            try {
-                const response = await fetch('/metrics');
-                const metrics = await response.text();
-                
-                const logDiv = document.getElementById('log-display');
-                const timestamp = new Date().toLocaleString('ja-JP');
-                logDiv.innerHTML = `<p>[${timestamp}] メトリクス更新完了</p>` + logDiv.innerHTML;
-                
-                const lines = logDiv.innerHTML.split('\n');
-                if (lines.length > 10) {
-                    logDiv.innerHTML = lines.slice(0, 10).join('\n');
-                }
-            } catch (error) {
-                console.error('メトリクス取得エラー:', error);
-            }
-        }, 30000);
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const statusDiv = document.getElementById('status-display');
+                statusDiv.innerHTML = '<p>復元を実行中...</p>';
+                fetch('/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: e.target.result
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        statusDiv.innerHTML = '<div class="status status-success">復元が完了しました: ' + data.message + '</div>';
+                    } else {
+                        statusDiv.innerHTML = '<div class="status status-error">復元に失敗しました: ' + data.message + '</div>';
+                    }
+                    document.getElementById('restore-section').style.display = 'none';
+                })
+                .catch(error => {
+                    statusDiv.innerHTML = '<div class="status status-error">通信エラー: ' + error.message + '</div>';
+                });
+            };
+            reader.readAsText(file);
+        }
     </script>
 </body>
 </html>

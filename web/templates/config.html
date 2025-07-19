@@ -9,7 +9,7 @@
 <body>
     <div class="header">
         <h1>設定編集</h1>
-        <p>Pi-hole Sync システムの設定を編集します</p>
+        <p>config.yamlの編集・管理を行います</p>
     </div>
 
     <div class="card">
@@ -17,18 +17,18 @@
     </div>
 
     <div class="card">
-        <h2>YAML設定ファイル</h2>
+        <h2>設定ファイル編集</h2>
         <form id="config-form">
             <div class="form-group">
-                <label for="config-yaml">config.yaml の内容:</label>
-                <textarea id="config-yaml" name="config" placeholder="YAML設定をここに入力してください..."></textarea>
+                <label for="config-yaml">config.yaml:</label>
+                <textarea id="config-yaml" name="config" placeholder="YAML設定を入力してください..."></textarea>
             </div>
             <button type="submit" class="btn btn-primary">設定を保存</button>
         </form>
     </div>
 
     <div class="card">
-        <h2>設定状態</h2>
+        <h2>操作状態</h2>
         <div id="status-display">
             <p>設定ファイルを読み込み中...</p>
         </div>
@@ -37,9 +37,16 @@
     <script>
         async function loadConfig() {
             try {
-                const response = await fetch('/config');
-                const config = await response.text();
-                document.getElementById('config-yaml').value = config;
+                const response = await fetch('/api/config', {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.config) {
+                    document.getElementById('config-yaml').value = data.config;
+                }
                 
                 document.getElementById('status-display').innerHTML = 
                     '<div class="status status-success">設定ファイルを正常に読み込みました。</div>';
@@ -61,9 +68,9 @@
                 const response = await fetch('/config', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'text/plain'
+                        'Content-Type': 'application/json'
                     },
-                    body: configData
+                    body: JSON.stringify({ config: configData })
                 });
                 
                 const result = await response.json();

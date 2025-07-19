@@ -26,7 +26,6 @@ tracker.example.com
 malware.example.com"></textarea>
             </div>
             <button type="submit" class="btn btn-primary">Gravityリストを保存</button>
-            <button type="button" class="btn btn-success" onclick="syncGravity()">同期実行</button>
         </form>
     </div>
 
@@ -88,30 +87,6 @@ malware.example.com"></textarea>
                 statusDiv.innerHTML = '<div class="status status-error">通信エラー: ' + error.message + '</div>';
             }
         });
-
-        async function syncGravity() {
-            const statusDiv = document.getElementById('status-display');
-            statusDiv.innerHTML = '<p>同期を実行中...</p>';
-            
-            try {
-                const response = await fetch('/sync', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const result = await response.json();
-                
-                if (response.ok && result.status === 'success') {
-                    statusDiv.innerHTML = '<div class="status status-success">同期が完了しました。</div>';
-                } else {
-                    statusDiv.innerHTML = '<div class="status status-error">同期に失敗しました: ' + (result.message || 'Unknown error') + '</div>';
-                }
-            } catch (error) {
-                statusDiv.innerHTML = '<div class="status status-error">通信エラー: ' + error.message + '</div>';
-            }
-        }
 
         loadGravity();
     </script>
