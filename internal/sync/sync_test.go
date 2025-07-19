@@ -102,7 +102,7 @@ func TestSyncWithNilMasterData(t *testing.T) {
 	syncer := NewSyncer(cfg)
 	_, err := syncer.Sync()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get master data")
+	assert.Contains(t, err.Error(), "failed to get master backup")
 }
 
 func TestSyncWithMultipleSlaves(t *testing.T) {
@@ -138,7 +138,7 @@ func TestSyncWithMultipleSlaves(t *testing.T) {
 	syncer := NewSyncer(cfg)
 	_, err := syncer.Sync()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get master data")
+	assert.Contains(t, err.Error(), "failed to get master backup")
 }
 
 func TestSyncRateLimiting(t *testing.T) {

@@ -24,7 +24,7 @@ func TestMakeRequest(t *testing.T) {
 		if r.URL.Path == "/api/auth" {
 			authCalled = true
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"session_id": "test-sid", "csrf_token": "test-csrf"}`))
+			w.Write([]byte(`{"session": {"sid": "test-sid", "csrf": "test-csrf"}}`))
 			return
 		}
 		assert.Contains(t, r.URL.RawQuery, "sid=test-sid")
@@ -67,27 +67,20 @@ func TestGetData(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/auth" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"session_id": "test-sid", "csrf_token": "test-csrf"}`))
+			w.Write([]byte(`{"session": {"sid": "test-sid", "csrf": "test-csrf"}}`))
 			return
 		}
-		
-		query := r.URL.Query()
-		list := query.Get("list")
-		action := query.Get("action")
-		
+
 		w.WriteHeader(http.StatusOK)
-		
-		if list == "adlist" {
-			w.Write([]byte(`{"data": [{"address": "example.com"}]}`))
-		} else if list == "black" {
-			w.Write([]byte(`{"data": [{"domain": "test.com"}]}`))
-		} else if list == "white" {
-			w.Write([]byte(`{"data": [{"domain": "test.com"}]}`))
-		} else if action == "get_groups" {
-			w.Write([]byte(`{"data": []}`))
-		} else if action == "get_custom_dns" {
-			w.Write([]byte(`{"data": []}`))
-		} else {
+
+		switch r.URL.Path {
+		case "/api/lists":
+			w.Write([]byte(`{"lists": [{"address": "example.com", "type": "block"}]}`))
+		case "/api/domains":
+			w.Write([]byte(`{"domains": [{"domain": "test.com", "type": "block"}, {"domain": "test.com", "type": "allow"}]}`))
+		case "/api/groups":
+			w.Write([]byte(`{"groups": []}`))
+		default:
 			w.Write([]byte(`{"data": []}`))
 		}
 	}))
@@ -102,7 +95,7 @@ func TestGetData(t *testing.T) {
 	assert.Equal(t, []string{"example.com"}, data.Adlists)
 	assert.Equal(t, []string{"test.com"}, data.Blacklist)
 	assert.Equal(t, []string{"test.com"}, data.Whitelist)
-	
+
 	if data.Groups == nil {
 		data.Groups = []string{}
 	}
@@ -112,7 +105,7 @@ func TestGetData(t *testing.T) {
 	if data.DHCP == nil {
 		data.DHCP = []string{}
 	}
-	
+
 	assert.Equal(t, []string{}, data.Groups)
 	assert.Equal(t, []string{}, data.DNSRecords)
 	assert.Equal(t, []string{}, data.DHCP)
@@ -122,7 +115,7 @@ func TestUpdateData(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/auth" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"session_id": "test-sid", "csrf_token": "test-csrf"}`))
+			w.Write([]byte(`{"session": {"sid": "test-sid", "csrf": "test-csrf"}}`))
 			return
 		}
 		w.WriteHeader(http.StatusOK)
@@ -187,11 +180,22 @@ func TestGetDataEmptyResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/auth" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"session_id": "test-sid", "csrf_token": "test-csrf"}`))
+			w.Write([]byte(`{"session": {"sid": "test-sid", "csrf": "test-csrf"}}`))
 			return
 		}
+
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"data": []}`))
+
+		switch r.URL.Path {
+		case "/api/lists":
+			w.Write([]byte(`{"lists": []}`))
+		case "/api/domains":
+			w.Write([]byte(`{"domains": []}`))
+		case "/api/groups":
+			w.Write([]byte(`{"groups": []}`))
+		default:
+			w.Write([]byte(`{"data": []}`))
+		}
 	}))
 	defer server.Close()
 
@@ -252,7 +256,7 @@ func TestAuthenticate(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/auth" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"session_id": "test-sid", "csrf_token": "test-csrf"}`))
+			w.Write([]byte(`{"session": {"sid": "test-sid", "csrf": "test-csrf"}}`))
 			return
 		}
 	}))
@@ -297,7 +301,7 @@ func TestAuthenticateInvalidResponse(t *testing.T) {
 
 	err := client.authenticate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "session_id not found")
+	assert.Contains(t, err.Error(), "session object not found")
 }
 
 func TestAuthenticateInvalidJSON(t *testing.T) {
@@ -321,7 +325,7 @@ func TestAuthenticateMissingCSRFToken(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/auth" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"session_id": "test-sid"}`))
+			w.Write([]byte(`{"session": {"sid": "test-sid"}}`))
 			return
 		}
 	}))
@@ -331,7 +335,7 @@ func TestAuthenticateMissingCSRFToken(t *testing.T) {
 
 	err := client.authenticate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "csrf_token not found")
+	assert.Contains(t, err.Error(), "session.csrf not found")
 }
 
 func TestMakeRequestWithExistingSession(t *testing.T) {
@@ -340,7 +344,7 @@ func TestMakeRequestWithExistingSession(t *testing.T) {
 		if r.URL.Path == "/api/auth" {
 			authCallCount++
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"session_id": "test-sid", "csrf_token": "test-csrf"}`))
+			w.Write([]byte(`{"session": {"sid": "test-sid", "csrf": "test-csrf"}}`))
 			return
 		}
 		assert.Contains(t, r.URL.RawQuery, "sid=test-sid")
@@ -363,14 +367,14 @@ func TestMakeRequestPOSTWithCSRF(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/auth" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"session_id": "test-sid", "csrf_token": "test-csrf"}`))
+			w.Write([]byte(`{"session": {"sid": "test-sid", "csrf": "test-csrf"}}`))
 			return
 		}
-		
+
 		if r.Method == "POST" {
 			assert.Equal(t, "test-csrf", r.Header.Get("X-FTL-CSRF"))
 		}
-		
+
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status": "success"}`))
 	}))
@@ -384,7 +388,7 @@ func TestMakeRequestPOSTWithCSRF(t *testing.T) {
 
 func TestClientWithEmptyPassword(t *testing.T) {
 	client := NewClient("http://test.local", "")
-	
+
 	assert.Equal(t, "", client.Password)
 	assert.Equal(t, "http://test.local", client.BaseURL)
 }
@@ -393,7 +397,7 @@ func TestUpdateDataWithEmptyData(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/auth" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"session_id": "test-sid", "csrf_token": "test-csrf"}`))
+			w.Write([]byte(`{"session": {"sid": "test-sid", "csrf": "test-csrf"}}`))
 			return
 		}
 		w.WriteHeader(http.StatusOK)

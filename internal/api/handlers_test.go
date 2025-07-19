@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -214,6 +216,30 @@ func TestRestoreHandler(t *testing.T) {
 
 func TestIndexHandler(t *testing.T) {
 	server := createTestServer()
+
+	// テスト用のHTMLファイルを作成
+	tempDir := t.TempDir()
+	webDir := filepath.Join(tempDir, "web", "templates")
+	err := os.MkdirAll(webDir, 0755)
+	require.NoError(t, err)
+
+	indexContent := `<!DOCTYPE html>
+<html>
+<head><title>Pi-hole Sync</title></head>
+<body><h1>Pi-hole Sync 管理画面</h1></body>
+</html>`
+
+	indexPath := filepath.Join(webDir, "index.html")
+	err = os.WriteFile(indexPath, []byte(indexContent), 0644)
+	require.NoError(t, err)
+
+	// 作業ディレクトリを一時的に変更
+	originalWd, err := os.Getwd()
+	require.NoError(t, err)
+	defer os.Chdir(originalWd)
+
+	err = os.Chdir(tempDir)
+	require.NoError(t, err)
 
 	req, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
