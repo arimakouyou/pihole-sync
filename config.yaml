@@ -40,3 +40,11 @@ slack:
 sync_retry:
   enabled: true
   count: 3
+metrics:
+  enabled: true
+  collection_interval: "30s"
+  enable_top_domains: true
+  enable_top_clients: true
+  enable_upstreams: true
+  enable_cache_metrics: true
+  top_items_limit: 10

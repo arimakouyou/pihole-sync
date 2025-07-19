@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/arimakouyou/pihole-sync/internal/types"
 )
 
 type Client struct {
@@ -534,4 +536,94 @@ func (c *Client) RestoreBackupWithOptions(backupData []byte, importOptions map[s
 	}
 
 	return nil
+}
+
+// GetSummaryStats retrieves summary statistics from Pi-hole FTL API
+func (c *Client) GetSummaryStats() (*types.SummaryStats, error) {
+	body, err := c.makeRequest("GET", "stats/summary", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get summary stats: %w", err)
+	}
+
+	var stats types.SummaryStats
+	if err := json.Unmarshal(body, &stats); err != nil {
+		return nil, fmt.Errorf("failed to parse summary stats: %w", err)
+	}
+
+	return &stats, nil
+}
+
+// GetQueryTypes retrieves query types statistics from Pi-hole FTL API
+func (c *Client) GetQueryTypes() (*types.QueryTypes, error) {
+	body, err := c.makeRequest("GET", "stats/query_types", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get query types: %w", err)
+	}
+
+	var queryTypes types.QueryTypes
+	if err := json.Unmarshal(body, &queryTypes); err != nil {
+		return nil, fmt.Errorf("failed to parse query types: %w", err)
+	}
+
+	return &queryTypes, nil
+}
+
+// GetUpstreams retrieves upstream server statistics from Pi-hole FTL API
+func (c *Client) GetUpstreams() (*types.Upstreams, error) {
+	body, err := c.makeRequest("GET", "stats/upstreams", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get upstreams: %w", err)
+	}
+
+	var upstreams types.Upstreams
+	if err := json.Unmarshal(body, &upstreams); err != nil {
+		return nil, fmt.Errorf("failed to parse upstreams: %w", err)
+	}
+
+	return &upstreams, nil
+}
+
+// GetTopDomains retrieves top domains statistics from Pi-hole FTL API
+func (c *Client) GetTopDomains() (*types.TopDomains, error) {
+	body, err := c.makeRequest("GET", "stats/top_domains", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get top domains: %w", err)
+	}
+
+	var topDomains types.TopDomains
+	if err := json.Unmarshal(body, &topDomains); err != nil {
+		return nil, fmt.Errorf("failed to parse top domains: %w", err)
+	}
+
+	return &topDomains, nil
+}
+
+// GetTopClients retrieves top clients statistics from Pi-hole FTL API
+func (c *Client) GetTopClients() (*types.TopClients, error) {
+	body, err := c.makeRequest("GET", "stats/top_clients", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get top clients: %w", err)
+	}
+
+	var topClients types.TopClients
+	if err := json.Unmarshal(body, &topClients); err != nil {
+		return nil, fmt.Errorf("failed to parse top clients: %w", err)
+	}
+
+	return &topClients, nil
+}
+
+// GetRecentBlocked retrieves recently blocked domains from Pi-hole FTL API
+func (c *Client) GetRecentBlocked() (*types.RecentBlocked, error) {
+	body, err := c.makeRequest("GET", "stats/recent_blocked", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get recent blocked: %w", err)
+	}
+
+	var recentBlocked types.RecentBlocked
+	if err := json.Unmarshal(body, &recentBlocked); err != nil {
+		return nil, fmt.Errorf("failed to parse recent blocked: %w", err)
+	}
+
+	return &recentBlocked, nil
 }

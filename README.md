@@ -15,7 +15,7 @@ Pi-hole同期システム - 複数台のPi-holeの設定を同期するための
 - **Slack通知**: エラー時の通知機能
 - **ログ出力**: 標準出力、ログレベル制御
 - **同期リトライ**: 回数設定可能
-- **メトリクス監視**: Prometheus対応
+- **メトリクス監視**: Prometheus対応、Pi-hole FTL APIから詳細統計を収集
 - **WebUI**: 設定編集、gravity編集、バックアップ/復元画面
 
 ## セットアップ
@@ -52,6 +52,14 @@ slack:
 sync_retry:
   enabled: true
   count: 3
+metrics:
+  enabled: true
+  collection_interval: "30s"
+  enable_top_domains: true
+  enable_top_clients: true
+  enable_upstreams: true
+  enable_cache_metrics: true
+  top_items_limit: 10
 ```
 
 ### 2. ビルドと実行
@@ -129,11 +137,37 @@ curl -X POST -H "Content-Type: application/json" \
 ```
 
 ### GET /metrics
-Prometheus形式のメトリクスを取得します
+Prometheus形式のメトリクスを取得します（Pi-hole FTL統計を含む）
 
 ```bash
 curl http://localhost:8080/metrics
 ```
+
+## メトリクス監視
+
+Pi-hole FTL APIから詳細な統計情報を収集し、Prometheus形式で公開します。
+
+### 利用可能なメトリクス
+
+- **コア統計**: ブロック数、クエリ数、ブロック率など
+- **クエリタイプ**: DNS記録タイプ別の統計
+- **アップストリーム**: 上位DNSサーバー別の統計  
+- **トップドメイン**: 最もクエリされた/ブロックされたドメイン
+- **トップクライアント**: 最もクエリしたクライアント
+- **システム監視**: API応答時間、エラー率など
+
+詳細は [docs/metrics.md](docs/metrics.md) を参照してください。
+
+### Grafana ダッシュボード
+
+包括的なPi-hole監視ダッシュボードの設定例を提供します：
+
+- 現在のブロック状況の概要
+- 時系列でのクエリ・ブロック数推移
+- クエリタイプ分布
+- トップドメイン・クライアント一覧
+- アップストリームサーバー使用状況
+- システムヘルス監視
 
 ## WebUI
 

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -15,6 +16,7 @@ type Config struct {
 	Slack       Slack         `yaml:"slack"`
 	SyncRetry   SyncRetry     `yaml:"sync_retry"`
 	Gravity     []string      `yaml:"gravity"`
+	Metrics     MetricsConfig `yaml:"metrics"`
 }
 
 type MasterConfig struct {
@@ -60,6 +62,16 @@ type Slack struct {
 type SyncRetry struct {
 	Enabled bool `yaml:"enabled"`
 	Count   int  `yaml:"count"`
+}
+
+type MetricsConfig struct {
+	Enabled            bool          `yaml:"enabled"`
+	CollectionInterval time.Duration `yaml:"collection_interval"`
+	EnableTopDomains   bool          `yaml:"enable_top_domains"`
+	EnableTopClients   bool          `yaml:"enable_top_clients"`
+	EnableUpstreams    bool          `yaml:"enable_upstreams"`
+	EnableCacheMetrics bool          `yaml:"enable_cache_metrics"`
+	TopItemsLimit      int           `yaml:"top_items_limit"`
 }
 
 func LoadConfig(path string) (*Config, error) {
