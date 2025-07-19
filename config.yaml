@@ -35,8 +35,7 @@ logging:
   level: "INFO"
   debug: false
 slack:
-  webhook_url: "https://hooks.slack.com/services/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"
-  #webhook_url: "https://hooks.slack.com/services/XXXXXXXXX/XXXXXXXXX/XXXXXXXXXXXXXXXXXXXX"
+  webhook_url: "https://hooks.slack.com/services/XXXXXXXXX/XXXXXXXXX/XXXXXXXXXXXXXXXXXXXX"
   notify_on_error: true
 sync_retry:
   enabled: true
