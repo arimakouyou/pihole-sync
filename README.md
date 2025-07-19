@@ -77,13 +77,39 @@ go build -o pihole-sync ./cmd/main.go
 
 ### 3. Dockerでの実行
 
+#### 基本的な実行
 ```bash
 # Dockerイメージのビルド
 docker build -t pihole-sync .
 
-# 実行
+# 基本実行（Pi-holeファイル監視なし）
 docker run -p 8080:8080 -v $(pwd)/config.yaml:/app/config.yaml pihole-sync
 ```
+
+#### Pi-holeファイル監視を有効にした実行
+```bash
+# Pi-holeデータディレクトリをマウントして実行
+docker run -p 8080:8080 \
+  -v $(pwd)/config.yaml:/app/config.yaml \
+  -v /etc/pihole:/var/lib/pihole:ro \
+  pihole-sync
+```
+
+#### Docker Composeでの実行
+```bash
+# docker-compose.ymlを使用
+docker-compose up -d
+
+# またはexampleファイルをコピーしてカスタマイズ
+cp docker-compose.example.yml docker-compose.yml
+# config.yamlでpihole_file_watch: trueに設定
+docker-compose up -d
+```
+
+**重要**: Pi-holeファイル監視機能を使用する場合：
+- Pi-holeが動作するホストの`/etc/pihole`を`/var/lib/pihole`にマウント
+- 設定で`pihole_file_watch: true`を有効化
+- `dhcp.leases`, `gravity.db`, `pihole.toml`の変更を自動検知
 
 ## API エンドポイント
 

@@ -423,7 +423,7 @@ slaves:
 	assert.Equal(t, "test-password", config.Master.Password)
 	assert.Len(t, config.Slaves, 1)
 	assert.Equal(t, "http://test-slave.local", config.Slaves[0].Host)
-	
+
 	assert.False(t, config.Slaves[0].SyncItems.Adlists)
 	assert.False(t, config.Slaves[0].SyncItems.Blacklist)
 	assert.Empty(t, config.SyncTrigger.Schedule)
@@ -450,8 +450,8 @@ func TestSaveConfigFilePermissions(t *testing.T) {
 
 	fileInfo, err := os.Stat(tmpFile.Name())
 	require.NoError(t, err)
-	
+
 	actualPerms := fileInfo.Mode().Perm()
-	assert.True(t, actualPerms&0644 == 0644 || actualPerms == 0600, 
+	assert.True(t, actualPerms&0644 == 0644 || actualPerms == 0600,
 		"File permissions should be 0644 or 0600, got %o", actualPerms)
 }

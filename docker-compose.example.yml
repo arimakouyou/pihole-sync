@@ -1,0 +1,41 @@
+# Pi-hole Sync Docker Compose 設定例
+# 使用方法: cp docker-compose.example.yml docker-compose.yml
+
+version: '3.8'
+services:
+  pihole-sync:
+    build: .
+    container_name: pihole-sync
+    ports:
+      - "8080:8080"
+    volumes:
+      # 設定ファイル
+      - ./config.yaml:/app/config.yaml
+      
+      # Pi-holeデータディレクトリ（読み取り専用でマウント）
+      # 実際のPi-holeのデータディレクトリパスに変更してください
+      - /etc/pihole:/var/lib/pihole:ro
+      
+      # 静的ファイル（オプション：開発時のみ）
+      # - ./web:/app/web
+    
+    environment:
+      - TZ=Asia/Tokyo
+      
+    # Pi-holeファイル監視のためのネットワーク設定（必要に応じて）
+    # network_mode: host
+    
+    restart: unless-stopped
+    
+    # ヘルスチェック
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# 複数のPi-holeインスタンスを監視する場合の例
+# networks:
+#   pihole_network:
+#     external: true
