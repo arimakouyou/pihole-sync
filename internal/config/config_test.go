@@ -361,7 +361,7 @@ func TestSaveConfigWithComplexData(t *testing.T) {
 			Schedule:        "0 */6 * * *",
 			APICall:         true,
 			WebUI:           false,
-			ConfigFileWatch: true,
+			PiholeFileWatch: true,
 		},
 		Logging: Logging{
 			Level: "DEBUG",

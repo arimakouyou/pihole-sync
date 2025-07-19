@@ -28,10 +28,10 @@ type QueryTypes struct {
 
 // UpstreamServer represents a single upstream server
 type UpstreamServer struct {
-	IP         string  `json:"ip"`
-	Name       string  `json:"name"`
-	Port       int     `json:"port"`
-	Count      int     `json:"count"`
+	IP         string `json:"ip"`
+	Name       string `json:"name"`
+	Port       int    `json:"port"`
+	Count      int    `json:"count"`
 	Statistics struct {
 		Response float64 `json:"response"`
 		Variance float64 `json:"variance"`

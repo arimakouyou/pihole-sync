@@ -40,6 +40,10 @@ func NewServer(cfg *config.Config) *Server {
 	}
 }
 
+func (s *Server) GetSyncer() *sync.Syncer {
+	return s.syncer
+}
+
 func (s *Server) SyncHandler(w http.ResponseWriter, r *http.Request) {
 	metrics.IncrementAPICall()
 

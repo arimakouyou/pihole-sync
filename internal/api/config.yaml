@@ -16,3 +16,13 @@ slack:
 sync_retry:
     enabled: false
     count: 0
+gravity:
+    - restored.com
+metrics:
+    enabled: false
+    collection_interval: 0s
+    enable_top_domains: false
+    enable_top_clients: false
+    enable_upstreams: false
+    enable_cache_metrics: false
+    top_items_limit: 0

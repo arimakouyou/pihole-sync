@@ -185,7 +185,7 @@ func UpdateUpstreams(upstreams *types.Upstreams, instance, role string) {
 		if upstreamLabel == "" {
 			upstreamLabel = upstream.IP
 		}
-		
+
 		// Set the count of queries sent to this upstream
 		PiholeUpstreamQueries.WithLabelValues(instance, role, upstreamLabel).Set(float64(upstream.Count))
 	}

@@ -46,7 +46,7 @@ type SyncTrigger struct {
 	Schedule        string `yaml:"schedule"`
 	APICall         bool   `yaml:"api_call"`
 	WebUI           bool   `yaml:"webui"`
-	ConfigFileWatch bool   `yaml:"config_file_watch"`
+	PiholeFileWatch bool   `yaml:"pihole_file_watch"`
 }
 
 type Logging struct {

@@ -30,7 +30,7 @@ sync_trigger:
   schedule: "0 3 * * *"
   api_call: true
   webui: true
-  config_file_watch: true
+  pihole_file_watch: true
 logging:
   level: "INFO"
   debug: false
