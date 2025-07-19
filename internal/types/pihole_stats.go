@@ -26,9 +26,24 @@ type QueryTypes struct {
 	Querytypes map[string]float64 `json:"querytypes"`
 }
 
+// UpstreamServer represents a single upstream server
+type UpstreamServer struct {
+	IP         string  `json:"ip"`
+	Name       string  `json:"name"`
+	Port       int     `json:"port"`
+	Count      int     `json:"count"`
+	Statistics struct {
+		Response float64 `json:"response"`
+		Variance float64 `json:"variance"`
+	} `json:"statistics"`
+}
+
 // Upstreams represents the statistics from /stats/upstreams endpoint
 type Upstreams struct {
-	Upstreams map[string]float64 `json:"upstreams"`
+	Upstreams        []UpstreamServer `json:"upstreams"`
+	TotalQueries     int              `json:"total_queries"`
+	ForwardedQueries int              `json:"forwarded_queries"`
+	Took             float64          `json:"took"`
 }
 
 // TopDomains represents the statistics from /stats/top_domains endpoint

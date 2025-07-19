@@ -51,11 +51,37 @@ func TestUpdateQueryTypes(t *testing.T) {
 
 func TestUpdateUpstreams(t *testing.T) {
 	upstreams := &types.Upstreams{
-		Upstreams: map[string]float64{
-			"8.8.8.8": 45.2,
-			"8.8.4.4": 30.1,
-			"1.1.1.1": 24.7,
+		Upstreams: []types.UpstreamServer{
+			{
+				IP:    "8.8.8.8",
+				Name:  "8.8.8.8",
+				Port:  53,
+				Count: 1500,
+				Statistics: struct {
+					Response float64 `json:"response"`
+					Variance float64 `json:"variance"`
+				}{
+					Response: 45.2,
+					Variance: 1.2,
+				},
+			},
+			{
+				IP:    "cache",
+				Name:  "cache",
+				Port:  -1,
+				Count: 800,
+				Statistics: struct {
+					Response float64 `json:"response"`
+					Variance float64 `json:"variance"`
+				}{
+					Response: 30.1,
+					Variance: 0.8,
+				},
+			},
 		},
+		TotalQueries:     2300,
+		ForwardedQueries: 1500,
+		Took:             0.001,
 	}
 
 	// This should not panic

@@ -179,8 +179,15 @@ func UpdateQueryTypes(queryTypes *types.QueryTypes, instance, role string) {
 
 // UpdateUpstreams updates Prometheus metrics with upstream server statistics
 func UpdateUpstreams(upstreams *types.Upstreams, instance, role string) {
-	for upstream, percentage := range upstreams.Upstreams {
-		PiholeUpstreamQueries.WithLabelValues(instance, role, upstream).Set(percentage)
+	for _, upstream := range upstreams.Upstreams {
+		// Use the upstream name (like "8.8.8.8" or "cache", "blocklist") as the label
+		upstreamLabel := upstream.Name
+		if upstreamLabel == "" {
+			upstreamLabel = upstream.IP
+		}
+		
+		// Set the count of queries sent to this upstream
+		PiholeUpstreamQueries.WithLabelValues(instance, role, upstreamLabel).Set(float64(upstream.Count))
 	}
 }
 

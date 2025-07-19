@@ -1,6 +1,6 @@
 master:
   host: "http://localhost:20801"
-  password: "masterpass"
+  password: "qTdx3NrnYVG5wGoVmNa5Va1LjYcwY7hXQwDcDzP+3Po="
 slaves:
   - host: "http://localhost:20802"
     password: "slave1pass"
