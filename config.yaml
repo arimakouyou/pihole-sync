@@ -32,8 +32,8 @@ sync_trigger:
   webui: true
   pihole_file_watch: true
 logging:
-  level: "INFO"
-  debug: false
+  level: "INFO"  # DEBUG, INFO, WARN, ERROR, FATAL
+  debug: false   # Set to true for verbose debug logging
 slack:
   webhook_url: "https://hooks.slack.com/services/XXXXXXXXX/XXXXXXXXX/XXXXXXXXXXXXXXXXXXXX"
   notify_on_error: true

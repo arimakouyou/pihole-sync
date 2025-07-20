@@ -14,13 +14,16 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/robfig/cron/v3"
+	"go.uber.org/zap"
 
 	"github.com/arimakouyou/pihole-sync/internal/api"
 	"github.com/arimakouyou/pihole-sync/internal/config"
+	"github.com/arimakouyou/pihole-sync/internal/logger"
 	"github.com/arimakouyou/pihole-sync/internal/metrics"
 )
 
 func main() {
+	// まず基本的なログ出力で起動を通知
 	log.Println("pihole-sync サーバー起動")
 
 	cfg, err := config.LoadConfig("config.yaml")
@@ -28,6 +31,15 @@ func main() {
 		log.Fatalf("設定ファイルの読み込みに失敗しました: %v", err)
 		cfg = &config.Config{}
 	}
+
+	// Initialize zap logger based on configuration
+	if err := logger.InitLogger(cfg); err != nil {
+		log.Fatalf("ロガーの初期化に失敗しました: %v", err)
+	}
+	defer logger.Cleanup()
+
+	// Use zap logger from now on
+	logger.Logger.Info("pihole-sync server starting with zap logger")
 
 	// Set default values for metrics configuration if not specified
 	setDefaultMetricsConfig(&cfg.Metrics)
@@ -45,23 +57,23 @@ func main() {
 	if cfg.SyncTrigger.Schedule != "" {
 		cronScheduler = cron.New()
 		_, err := cronScheduler.AddFunc(cfg.SyncTrigger.Schedule, func() {
-			log.Println("Running scheduled sync...")
+			logger.Logger.Info("Running scheduled sync...")
 			result, err := server.GetSyncer().Sync()
 			if err != nil {
-				log.Printf("Scheduled sync error: %v", err)
+				logger.Logger.Error("Scheduled sync error", zap.Error(err))
 				return
 			}
 			if result.Success {
-				log.Printf("Scheduled sync completed successfully: %s", result.Message)
+				logger.Logger.Info("Scheduled sync completed successfully", zap.String("message", result.Message))
 			} else {
-				log.Printf("Scheduled sync failed: %s", result.Message)
+				logger.Logger.Warn("Scheduled sync failed", zap.String("message", result.Message))
 			}
 		})
 		if err != nil {
-			log.Printf("Failed to add scheduled sync: %v", err)
+			logger.Logger.Error("Failed to add scheduled sync", zap.Error(err))
 		} else {
 			cronScheduler.Start()
-			log.Printf("Started scheduled sync with cron expression: %s", cfg.SyncTrigger.Schedule)
+			logger.Logger.Info("Started scheduled sync", zap.String("cron", cfg.SyncTrigger.Schedule))
 		}
 	}
 
@@ -71,7 +83,7 @@ func main() {
 		var err error
 		watcher, err = fsnotify.NewWatcher()
 		if err != nil {
-			log.Printf("Failed to create Pi-hole file watcher: %v", err)
+			logger.Logger.Error("Failed to create Pi-hole file watcher", zap.Error(err))
 		} else {
 			// Pi-hole data directory (mounted from host /etc/pihole)
 			piholeDataDir := "/var/lib/pihole"
@@ -85,14 +97,14 @@ func main() {
 			for _, file := range watchFiles {
 				err = watcher.Add(file)
 				if err != nil {
-					log.Printf("Failed to watch %s: %v", file, err)
+					logger.Logger.Warn("Failed to watch file", zap.String("file", file), zap.Error(err))
 				} else {
 					watchedFiles++
 				}
 			}
 
 			if watchedFiles == 0 {
-				log.Println("No Pi-hole files could be watched, closing watcher")
+				logger.Logger.Warn("No Pi-hole files could be watched, closing watcher")
 				watcher.Close()
 				watcher = nil
 			} else {
@@ -111,7 +123,7 @@ func main() {
 								return
 							}
 							if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) {
-								log.Printf("Pi-hole file changed: %s", event.Name)
+								logger.Logger.Debug("Pi-hole file changed", zap.String("file", event.Name))
 
 								// Reset debounce timer
 								if debounceTimer != nil {
@@ -119,16 +131,16 @@ func main() {
 								}
 
 								debounceTimer = time.AfterFunc(debounceDelay, func() {
-									log.Printf("Debounce period completed, triggering sync after Pi-hole file changes...")
+									logger.Logger.Info("Debounce period completed, triggering sync after Pi-hole file changes")
 									result, err := server.GetSyncer().Sync()
 									if err != nil {
-										log.Printf("Pi-hole file change sync error: %v", err)
+										logger.Logger.Error("Pi-hole file change sync error", zap.Error(err))
 										return
 									}
 									if result.Success {
-										log.Printf("Pi-hole file change sync completed: %s", result.Message)
+										logger.Logger.Info("Pi-hole file change sync completed", zap.String("message", result.Message))
 									} else {
-										log.Printf("Pi-hole file change sync failed: %s", result.Message)
+										logger.Logger.Warn("Pi-hole file change sync failed", zap.String("message", result.Message))
 									}
 								})
 							}
@@ -136,7 +148,7 @@ func main() {
 							if !ok {
 								return
 							}
-							log.Printf("Pi-hole file watcher error: %v", err)
+							logger.Logger.Error("Pi-hole file watcher error", zap.Error(err))
 						case <-ctx.Done():
 							if debounceTimer != nil {
 								debounceTimer.Stop()
@@ -145,27 +157,47 @@ func main() {
 						}
 					}
 				}()
-				log.Printf("Started Pi-hole file watch for %d files in %s", watchedFiles, piholeDataDir)
+				logger.Logger.Info("Started Pi-hole file watch",
+					zap.Int("watched_files", watchedFiles),
+					zap.String("directory", piholeDataDir))
 			}
 		}
 	}
 
 	// Start metrics collection for all Pi-hole instances if metrics are enabled
+	var metricsCancel context.CancelFunc
+	var metricsCtx context.Context
 	if cfg.Metrics.Enabled {
-		logger := log.New(os.Stdout, "[METRICS] ", log.LstdFlags)
-		collector := metrics.NewCollector(cfg, logger)
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if err := collector.Start(ctx); err != nil && err != context.Canceled {
-				log.Printf("Metrics collector error: %v", err)
-			}
-		}()
-
-		instanceCount := 1 + len(cfg.Slaves) // master + slaves
-		log.Printf("Started metrics collection for %d Pi-hole instances", instanceCount)
+		metricsCtx, metricsCancel = context.WithCancel(ctx)
+		startMetricsCollection(cfg, &wg, metricsCtx)
 	}
+
+	// Watch for configuration reloads
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-server.GetReloadChannel():
+				logger.Logger.Info("Configuration reload detected, restarting services")
+
+				// Get updated config from server
+				newConfig := server.GetConfig()
+
+				// Restart metrics collection if needed
+				if metricsCancel != nil {
+					metricsCancel() // Stop old metrics collector
+				}
+
+				if newConfig.Metrics.Enabled {
+					metricsCtx, metricsCancel = context.WithCancel(ctx)
+					startMetricsCollection(newConfig, &wg, metricsCtx)
+				}
+			}
+		}
+	}()
 
 	r := mux.NewRouter()
 
@@ -194,25 +226,25 @@ func main() {
 
 	// Start HTTP server in a separate goroutine
 	go func() {
-		log.Println("サーバーをポート8080で起動中...")
+		logger.Logger.Info("Starting HTTP server", zap.Int("port", 8080))
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("サーバーの起動に失敗しました: %v", err)
+			logger.Logger.Fatal("Failed to start HTTP server", zap.Error(err))
 		}
 	}()
 
 	// Wait for shutdown signal
 	<-sigChan
-	log.Println("Shutdown signal received, gracefully shutting down...")
+	logger.Logger.Info("Shutdown signal received, gracefully shutting down")
 
 	// Stop scheduled sync
 	if cronScheduler != nil {
-		log.Println("Stopping scheduled sync...")
+		logger.Logger.Info("Stopping scheduled sync")
 		cronScheduler.Stop()
 	}
 
 	// Stop Pi-hole file watcher
 	if watcher != nil {
-		log.Println("Stopping Pi-hole file watcher...")
+		logger.Logger.Info("Stopping Pi-hole file watcher")
 		watcher.Close()
 	}
 
@@ -224,12 +256,26 @@ func main() {
 	defer shutdownCancel()
 
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		log.Printf("HTTP server shutdown error: %v", err)
+		logger.Logger.Error("HTTP server shutdown error", zap.Error(err))
 	}
 
 	// Wait for all goroutines to finish
 	wg.Wait()
-	log.Println("Server shutdown completed")
+	logger.Logger.Info("Server shutdown completed")
+}
+
+// startMetricsCollection starts the metrics collection service
+func startMetricsCollection(cfg *config.Config, wg *sync.WaitGroup, ctx context.Context) {
+	if cfg.Metrics.Enabled {
+		go func() {
+			defer wg.Done()
+			collector := metrics.NewCollector(cfg, logger.Logger)
+			if err := collector.Start(ctx); err != nil {
+				logger.Logger.Error("メトリクス収集エラー", zap.Error(err))
+			}
+		}()
+		wg.Add(1)
+	}
 }
 
 // setDefaultMetricsConfig sets default values for metrics configuration

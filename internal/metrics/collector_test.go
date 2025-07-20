@@ -2,10 +2,10 @@ package metrics
 
 import (
 	"context"
-	"log"
-	"os"
 	"testing"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/arimakouyou/pihole-sync/internal/config"
 )
@@ -32,7 +32,7 @@ func TestNewCollector(t *testing.T) {
 			TopItemsLimit:      10,
 		},
 	}
-	logger := log.New(os.Stdout, "[TEST] ", log.LstdFlags)
+	logger := zap.NewNop() // No-op logger for testing
 
 	collector := NewCollector(cfg, logger)
 
@@ -79,7 +79,7 @@ func TestCollectorStart_Disabled(t *testing.T) {
 			Enabled: false,
 		},
 	}
-	logger := log.New(os.Stdout, "[TEST] ", log.LstdFlags)
+	logger := zap.NewNop() // No-op logger for testing
 
 	collector := NewCollector(cfg, logger)
 
@@ -104,7 +104,7 @@ func TestCollectorStart_WithContext(t *testing.T) {
 			TopItemsLimit:      5,
 		},
 	}
-	logger := log.New(os.Stdout, "[TEST] ", log.LstdFlags)
+	logger := zap.NewNop() // No-op logger for testing
 
 	collector := NewCollector(cfg, logger)
 
