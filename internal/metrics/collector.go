@@ -2,8 +2,9 @@ package metrics
 
 import (
 	"context"
-	"log"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/arimakouyou/pihole-sync/internal/config"
 	"github.com/arimakouyou/pihole-sync/internal/pihole"
@@ -20,11 +21,11 @@ type PiholeInstance struct {
 type Collector struct {
 	instances []PiholeInstance
 	config    *config.MetricsConfig
-	logger    *log.Logger
+	logger    *zap.Logger
 }
 
 // NewCollector creates a new metrics collector for multiple Pi-hole instances
-func NewCollector(cfg *config.Config, logger *log.Logger) *Collector {
+func NewCollector(cfg *config.Config, logger *zap.Logger) *Collector {
 	var instances []PiholeInstance
 
 	// Add master instance
@@ -55,11 +56,11 @@ func NewCollector(cfg *config.Config, logger *log.Logger) *Collector {
 // Start begins the metrics collection process
 func (c *Collector) Start(ctx context.Context) error {
 	if !c.config.Enabled {
-		c.logger.Printf("Metrics collection is disabled")
+		c.logger.Info("Metrics collection is disabled")
 		return nil
 	}
 
-	c.logger.Printf("Starting Pi-hole metrics collector with interval: %v", c.config.CollectionInterval)
+	c.logger.Info("Starting Pi-hole metrics collector", zap.Duration("interval", c.config.CollectionInterval))
 
 	ticker := time.NewTicker(c.config.CollectionInterval)
 	defer ticker.Stop()
@@ -70,7 +71,7 @@ func (c *Collector) Start(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			c.logger.Printf("Stopping metrics collector")
+			c.logger.Info("Stopping metrics collector")
 			return ctx.Err()
 		case <-ticker.C:
 			c.collectMetrics()
@@ -81,14 +82,14 @@ func (c *Collector) Start(ctx context.Context) error {
 // collectMetrics collects all enabled metrics from all Pi-hole instances
 func (c *Collector) collectMetrics() {
 	startTime := time.Now()
-	c.logger.Printf("Starting metrics collection from %d instances", len(c.instances))
+	c.logger.Debug("Starting metrics collection", zap.Int("instances", len(c.instances)))
 
 	for _, instance := range c.instances {
 		c.collectInstanceMetrics(instance)
 	}
 
 	duration := time.Since(startTime)
-	c.logger.Printf("Metrics collection completed in %v", duration)
+	c.logger.Debug("Metrics collection completed", zap.Duration("duration", duration))
 }
 
 // collectInstanceMetrics collects metrics from a single Pi-hole instance
@@ -98,20 +99,29 @@ func (c *Collector) collectInstanceMetrics(instance PiholeInstance) {
 
 	// Collect summary statistics
 	if err := c.collectSummaryStats(instance); err != nil {
-		c.logger.Printf("Failed to collect summary stats from %s (%s): %v", instanceName, role, err)
+		c.logger.Error("Failed to collect summary stats", 
+			zap.String("host", instanceName), 
+			zap.String("role", role), 
+			zap.Error(err))
 		RecordAPIError(instanceName, role, "stats/summary")
 	}
 
 	// Collect query types
 	if err := c.collectQueryTypes(instance); err != nil {
-		c.logger.Printf("Failed to collect query types from %s (%s): %v", instanceName, role, err)
+		c.logger.Error("Failed to collect query types", 
+			zap.String("host", instanceName), 
+			zap.String("role", role), 
+			zap.Error(err))
 		RecordAPIError(instanceName, role, "stats/query_types")
 	}
 
 	// Collect upstreams if enabled
 	if c.config.EnableUpstreams {
 		if err := c.collectUpstreams(instance); err != nil {
-			c.logger.Printf("Failed to collect upstreams from %s (%s): %v", instanceName, role, err)
+			c.logger.Error("Failed to collect upstreams", 
+				zap.String("host", instanceName), 
+				zap.String("role", role), 
+				zap.Error(err))
 			RecordAPIError(instanceName, role, "stats/upstreams")
 		}
 	}
@@ -119,7 +129,10 @@ func (c *Collector) collectInstanceMetrics(instance PiholeInstance) {
 	// Collect top domains if enabled
 	if c.config.EnableTopDomains {
 		if err := c.collectTopDomains(instance); err != nil {
-			c.logger.Printf("Failed to collect top domains from %s (%s): %v", instanceName, role, err)
+			c.logger.Error("Failed to collect top domains", 
+				zap.String("host", instanceName), 
+				zap.String("role", role), 
+				zap.Error(err))
 			RecordAPIError(instanceName, role, "stats/top_domains")
 		}
 	}
@@ -127,7 +140,10 @@ func (c *Collector) collectInstanceMetrics(instance PiholeInstance) {
 	// Collect top clients if enabled
 	if c.config.EnableTopClients {
 		if err := c.collectTopClients(instance); err != nil {
-			c.logger.Printf("Failed to collect top clients from %s (%s): %v", instanceName, role, err)
+			c.logger.Error("Failed to collect top clients", 
+				zap.String("host", instanceName), 
+				zap.String("role", role), 
+				zap.Error(err))
 			RecordAPIError(instanceName, role, "stats/top_clients")
 		}
 	}

@@ -2,10 +2,12 @@ package sync
 
 import (
 	"fmt"
-	"log"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/arimakouyou/pihole-sync/internal/config"
+	"github.com/arimakouyou/pihole-sync/internal/logger"
 	"github.com/arimakouyou/pihole-sync/internal/pihole"
 )
 
@@ -60,7 +62,10 @@ func (s *Syncer) Sync() (*SyncResult, error) {
 		}, nil
 	}
 
-	log.Println("Starting synchronization...")
+	// Safe logging - check if logger is initialized
+	if logger.Logger != nil {
+		logger.Logger.Info("Starting synchronization")
+	}
 
 	// Teleporter APIを使用してマスターからバックアップをダウンロード
 	masterBackup, err := s.masterClient.GetBackup()
@@ -116,19 +121,33 @@ func (s *Syncer) syncSlaveWithBackup(client *pihole.Client, slave config.SlaveCo
 	for retryCount <= maxRetries {
 		err := client.RestoreBackupWithOptions(masterBackup, importOptions)
 		if err == nil {
-			log.Printf("Successfully synced slave %s using Teleporter API with selective import", slave.Host)
+			if logger.Logger != nil {
+				logger.Logger.Info("Successfully synced slave using Teleporter API", 
+					zap.String("host", slave.Host))
+			}
 			break
 		}
 
 		if retryCount == maxRetries {
 			result.Result = "error"
 			result.Error = err.Error()
-			log.Printf("Failed to sync slave %s after %d retries: %v", slave.Host, maxRetries, err)
+			if logger.Logger != nil {
+				logger.Logger.Error("Failed to sync slave after retries", 
+					zap.String("host", slave.Host), 
+					zap.Int("max_retries", maxRetries), 
+					zap.Error(err))
+			}
 			break
 		}
 
 		retryCount++
-		log.Printf("Sync failed for slave %s, retrying (%d/%d): %v", slave.Host, retryCount, maxRetries, err)
+		if logger.Logger != nil {
+			logger.Logger.Warn("Sync failed for slave, retrying", 
+				zap.String("host", slave.Host), 
+				zap.Int("retry", retryCount), 
+				zap.Int("max_retries", maxRetries), 
+				zap.Error(err))
+		}
 		time.Sleep(time.Duration(retryCount) * time.Second)
 	}
 
