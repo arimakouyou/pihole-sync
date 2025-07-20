@@ -165,21 +165,39 @@ func main() {
 	}
 
 	// Start metrics collection for all Pi-hole instances if metrics are enabled
+	var metricsCancel context.CancelFunc
+	var metricsCtx context.Context
 	if cfg.Metrics.Enabled {
-		metricsLogger := logger.Logger.With(zap.String("component", "metrics"))
-		collector := metrics.NewCollector(cfg, metricsLogger)
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if err := collector.Start(ctx); err != nil && err != context.Canceled {
-				logger.Logger.Error("Metrics collector error", zap.Error(err))
-			}
-		}()
-
-		instanceCount := 1 + len(cfg.Slaves) // master + slaves
-		logger.Logger.Info("Started metrics collection", zap.Int("instances", instanceCount))
+		metricsCtx, metricsCancel = context.WithCancel(ctx)
+		startMetricsCollection(cfg, &wg, metricsCtx)
 	}
+
+	// Watch for configuration reloads
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-server.GetReloadChannel():
+				logger.Logger.Info("Configuration reload detected, restarting services")
+
+				// Get updated config from server
+				newConfig := server.GetConfig()
+
+				// Restart metrics collection if needed
+				if metricsCancel != nil {
+					metricsCancel() // Stop old metrics collector
+				}
+
+				if newConfig.Metrics.Enabled {
+					metricsCtx, metricsCancel = context.WithCancel(ctx)
+					startMetricsCollection(newConfig, &wg, metricsCtx)
+				}
+			}
+		}
+	}()
 
 	r := mux.NewRouter()
 
@@ -244,6 +262,20 @@ func main() {
 	// Wait for all goroutines to finish
 	wg.Wait()
 	logger.Logger.Info("Server shutdown completed")
+}
+
+// startMetricsCollection starts the metrics collection service
+func startMetricsCollection(cfg *config.Config, wg *sync.WaitGroup, ctx context.Context) {
+	if cfg.Metrics.Enabled {
+		go func() {
+			defer wg.Done()
+			collector := metrics.NewCollector(cfg, logger.Logger)
+			if err := collector.Start(ctx); err != nil {
+				logger.Logger.Error("メトリクス収集エラー", zap.Error(err))
+			}
+		}()
+		wg.Add(1)
+	}
 }
 
 // setDefaultMetricsConfig sets default values for metrics configuration

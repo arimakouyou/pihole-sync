@@ -25,7 +25,7 @@ func InitLogger(cfg *config.Config) error {
 		zapConfig = zap.NewProductionConfig()
 		zapConfig.Level = zap.NewAtomicLevelAt(level)
 		zapConfig.Development = false
-		
+
 		// Use console encoder for better readability
 		zapConfig.Encoding = "console"
 		zapConfig.EncoderConfig.TimeKey = "time"

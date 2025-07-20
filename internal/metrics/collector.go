@@ -99,18 +99,18 @@ func (c *Collector) collectInstanceMetrics(instance PiholeInstance) {
 
 	// Collect summary statistics
 	if err := c.collectSummaryStats(instance); err != nil {
-		c.logger.Error("Failed to collect summary stats", 
-			zap.String("host", instanceName), 
-			zap.String("role", role), 
+		c.logger.Error("Failed to collect summary stats",
+			zap.String("host", instanceName),
+			zap.String("role", role),
 			zap.Error(err))
 		RecordAPIError(instanceName, role, "stats/summary")
 	}
 
 	// Collect query types
 	if err := c.collectQueryTypes(instance); err != nil {
-		c.logger.Error("Failed to collect query types", 
-			zap.String("host", instanceName), 
-			zap.String("role", role), 
+		c.logger.Error("Failed to collect query types",
+			zap.String("host", instanceName),
+			zap.String("role", role),
 			zap.Error(err))
 		RecordAPIError(instanceName, role, "stats/query_types")
 	}
@@ -118,9 +118,9 @@ func (c *Collector) collectInstanceMetrics(instance PiholeInstance) {
 	// Collect upstreams if enabled
 	if c.config.EnableUpstreams {
 		if err := c.collectUpstreams(instance); err != nil {
-			c.logger.Error("Failed to collect upstreams", 
-				zap.String("host", instanceName), 
-				zap.String("role", role), 
+			c.logger.Error("Failed to collect upstreams",
+				zap.String("host", instanceName),
+				zap.String("role", role),
 				zap.Error(err))
 			RecordAPIError(instanceName, role, "stats/upstreams")
 		}
@@ -129,9 +129,9 @@ func (c *Collector) collectInstanceMetrics(instance PiholeInstance) {
 	// Collect top domains if enabled
 	if c.config.EnableTopDomains {
 		if err := c.collectTopDomains(instance); err != nil {
-			c.logger.Error("Failed to collect top domains", 
-				zap.String("host", instanceName), 
-				zap.String("role", role), 
+			c.logger.Error("Failed to collect top domains",
+				zap.String("host", instanceName),
+				zap.String("role", role),
 				zap.Error(err))
 			RecordAPIError(instanceName, role, "stats/top_domains")
 		}
@@ -140,9 +140,9 @@ func (c *Collector) collectInstanceMetrics(instance PiholeInstance) {
 	// Collect top clients if enabled
 	if c.config.EnableTopClients {
 		if err := c.collectTopClients(instance); err != nil {
-			c.logger.Error("Failed to collect top clients", 
-				zap.String("host", instanceName), 
-				zap.String("role", role), 
+			c.logger.Error("Failed to collect top clients",
+				zap.String("host", instanceName),
+				zap.String("role", role),
 				zap.Error(err))
 			RecordAPIError(instanceName, role, "stats/top_clients")
 		}

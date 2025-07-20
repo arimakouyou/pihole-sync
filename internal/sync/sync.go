@@ -122,7 +122,7 @@ func (s *Syncer) syncSlaveWithBackup(client *pihole.Client, slave config.SlaveCo
 		err := client.RestoreBackupWithOptions(masterBackup, importOptions)
 		if err == nil {
 			if logger.Logger != nil {
-				logger.Logger.Info("Successfully synced slave using Teleporter API", 
+				logger.Logger.Info("Successfully synced slave using Teleporter API",
 					zap.String("host", slave.Host))
 			}
 			break
@@ -132,9 +132,9 @@ func (s *Syncer) syncSlaveWithBackup(client *pihole.Client, slave config.SlaveCo
 			result.Result = "error"
 			result.Error = err.Error()
 			if logger.Logger != nil {
-				logger.Logger.Error("Failed to sync slave after retries", 
-					zap.String("host", slave.Host), 
-					zap.Int("max_retries", maxRetries), 
+				logger.Logger.Error("Failed to sync slave after retries",
+					zap.String("host", slave.Host),
+					zap.Int("max_retries", maxRetries),
 					zap.Error(err))
 			}
 			break
@@ -142,10 +142,10 @@ func (s *Syncer) syncSlaveWithBackup(client *pihole.Client, slave config.SlaveCo
 
 		retryCount++
 		if logger.Logger != nil {
-			logger.Logger.Warn("Sync failed for slave, retrying", 
-				zap.String("host", slave.Host), 
-				zap.Int("retry", retryCount), 
-				zap.Int("max_retries", maxRetries), 
+			logger.Logger.Warn("Sync failed for slave, retrying",
+				zap.String("host", slave.Host),
+				zap.Int("retry", retryCount),
+				zap.Int("max_retries", maxRetries),
 				zap.Error(err))
 		}
 		time.Sleep(time.Duration(retryCount) * time.Second)

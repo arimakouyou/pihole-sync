@@ -4,23 +4,28 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strings"
+	stdSync "sync"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/arimakouyou/pihole-sync/internal/config"
+	"github.com/arimakouyou/pihole-sync/internal/logger"
 	"github.com/arimakouyou/pihole-sync/internal/metrics"
 	"github.com/arimakouyou/pihole-sync/internal/notifications"
 	"github.com/arimakouyou/pihole-sync/internal/sync"
 )
 
 type Server struct {
-	config   *config.Config
-	syncer   *sync.Syncer
-	notifier *notifications.SlackNotifier
-	gravity  []string
+	config        *config.Config
+	syncer        *sync.Syncer
+	notifier      *notifications.SlackNotifier
+	gravity       []string
+	configMutex   stdSync.RWMutex
+	reloadChannel chan bool
 }
 
 type BackupData struct {
@@ -33,15 +38,69 @@ func NewServer(cfg *config.Config) *Server {
 	notifier := notifications.NewSlackNotifier(cfg.Slack.WebhookURL, cfg.Slack.NotifyOnError)
 
 	return &Server{
-		config:   cfg,
-		syncer:   syncer,
-		notifier: notifier,
-		gravity:  cfg.Gravity,
+		config:        cfg,
+		syncer:        syncer,
+		notifier:      notifier,
+		gravity:       cfg.Gravity,
+		reloadChannel: make(chan bool, 1),
 	}
 }
 
 func (s *Server) GetSyncer() *sync.Syncer {
+	s.configMutex.RLock()
+	defer s.configMutex.RUnlock()
 	return s.syncer
+}
+
+// GetConfig returns the current configuration (thread-safe)
+func (s *Server) GetConfig() *config.Config {
+	s.configMutex.RLock()
+	defer s.configMutex.RUnlock()
+	return s.config
+}
+
+// ReloadConfig reloads the configuration from file and updates all components
+func (s *Server) ReloadConfig() error {
+	s.configMutex.Lock()
+	defer s.configMutex.Unlock()
+
+	// Load new configuration
+	newConfig, err := config.LoadConfig("config.yaml")
+	if err != nil {
+		return fmt.Errorf("failed to load new config: %w", err)
+	}
+
+	// Update logger with new configuration
+	if err := logger.InitLogger(newConfig); err != nil {
+		logger.Logger.Error("Failed to reinitialize logger", zap.Error(err))
+		// Continue with old logger rather than failing completely
+	}
+
+	// Update server configuration
+	s.config = newConfig
+	s.gravity = newConfig.Gravity
+
+	// Recreate syncer with new configuration
+	s.syncer = sync.NewSyncer(newConfig)
+
+	// Recreate notifier with new configuration
+	s.notifier = notifications.NewSlackNotifier(newConfig.Slack.WebhookURL, newConfig.Slack.NotifyOnError)
+
+	logger.Logger.Info("Configuration reloaded successfully")
+
+	// Signal main process that config has been reloaded
+	select {
+	case s.reloadChannel <- true:
+	default:
+		// Channel is full, but that's okay
+	}
+
+	return nil
+}
+
+// GetReloadChannel returns the channel used to signal configuration reloads
+func (s *Server) GetReloadChannel() <-chan bool {
+	return s.reloadChannel
 }
 
 func (s *Server) SyncHandler(w http.ResponseWriter, r *http.Request) {
@@ -152,7 +211,7 @@ func (s *Server) GravityPostHandler(w http.ResponseWriter, r *http.Request) {
 			s.config.Gravity = gravity
 
 			if err := s.config.SaveConfig("config.yaml"); err != nil {
-				log.Printf("Failed to save config with gravity: %v", err)
+				logger.Logger.Error("Failed to save config with gravity", zap.Error(err))
 			}
 		}
 	} else {
@@ -183,7 +242,7 @@ func (s *Server) GravityPostHandler(w http.ResponseWriter, r *http.Request) {
 
 		s.config.Gravity = s.gravity
 		if err := s.config.SaveConfig("config.yaml"); err != nil {
-			log.Printf("Failed to save config with gravity: %v", err)
+			logger.Logger.Error("Failed to save config with gravity", zap.Error(err))
 		}
 	}
 
@@ -214,7 +273,7 @@ func (s *Server) BackupHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(backup); err != nil {
 		metrics.IncrementError()
-		log.Printf("Failed to encode backup data: %v", err)
+		logger.Logger.Error("Failed to encode backup data", zap.Error(err))
 		http.Error(w, "Failed to create backup", http.StatusInternalServerError)
 	}
 }
@@ -246,7 +305,7 @@ func (s *Server) RestoreHandler(w http.ResponseWriter, r *http.Request) {
 	s.config.Gravity = backup.Gravity
 
 	if err := s.config.SaveConfig("config.yaml"); err != nil {
-		log.Printf("Failed to save config: %v", err)
+		logger.Logger.Error("Failed to save config", zap.Error(err))
 	}
 
 	response := map[string]string{
@@ -295,7 +354,14 @@ func (s *Server) ConfigSaveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := map[string]string{"status": "success", "message": "設定を保存しました"}
+	// Reload configuration after saving
+	if err := s.ReloadConfig(); err != nil {
+		logger.Logger.Error("Failed to reload config after save", zap.Error(err))
+		http.Error(w, "Config saved but failed to reload", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]string{"status": "success", "message": "設定を保存し、再読み込みしました"}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
