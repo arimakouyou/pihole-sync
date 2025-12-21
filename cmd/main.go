@@ -29,7 +29,6 @@ func main() {
 	cfg, err := config.LoadConfig("config.yaml")
 	if err != nil {
 		log.Fatalf("設定ファイルの読み込みに失敗しました: %v", err)
-		cfg = &config.Config{}
 	}
 
 	// Initialize zap logger based on configuration

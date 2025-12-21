@@ -166,16 +166,21 @@ func (s *Server) GravityGetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.configMutex.RLock()
+	gravityCopy := make([]string, len(s.gravity))
+	copy(gravityCopy, s.gravity)
+	s.configMutex.RUnlock()
+
 	accept := r.Header.Get("Accept")
 	if strings.Contains(accept, "application/json") {
 		response := map[string]interface{}{
-			"gravity": s.gravity,
+			"gravity": gravityCopy,
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 	} else {
 		w.Header().Set("Content-Type", "text/plain")
-		for _, entry := range s.gravity {
+		for _, entry := range gravityCopy {
 			fmt.Fprintf(w, "0.0.0.0 %s\n", entry)
 		}
 	}
@@ -196,6 +201,9 @@ func (s *Server) GravityPostHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
+
+	s.configMutex.Lock()
+	defer s.configMutex.Unlock()
 
 	contentType := r.Header.Get("Content-Type")
 	if strings.Contains(contentType, "application/json") {
@@ -263,10 +271,12 @@ func (s *Server) BackupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.configMutex.RLock()
 	backup := BackupData{
 		Config:  s.config,
 		Gravity: s.gravity,
 	}
+	s.configMutex.RUnlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Disposition", "attachment; filename=pihole-sync-backup.json")
@@ -300,9 +310,11 @@ func (s *Server) RestoreHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.configMutex.Lock()
 	s.config = backup.Config
 	s.gravity = backup.Gravity
 	s.config.Gravity = backup.Gravity
+	s.configMutex.Unlock()
 
 	if err := s.config.SaveConfig("config.yaml"); err != nil {
 		logger.Logger.Error("Failed to save config", zap.Error(err))
@@ -349,7 +361,7 @@ func (s *Server) ConfigSaveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := os.WriteFile("config.yaml", []byte(configData), 0644); err != nil {
+	if err := os.WriteFile("config.yaml", []byte(configData), 0600); err != nil {
 		http.Error(w, "Failed to save config", http.StatusInternalServerError)
 		return
 	}

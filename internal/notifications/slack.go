@@ -76,7 +76,11 @@ func (s *SlackNotifier) sendMessage(message SlackMessage) error {
 		return fmt.Errorf("failed to marshal slack message: %w", err)
 	}
 
-	resp, err := http.Post(s.webhookURL, "application/json", bytes.NewBuffer(jsonData))
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	resp, err := client.Post(s.webhookURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to send slack message: %w", err)
 	}
