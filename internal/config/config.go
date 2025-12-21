@@ -107,22 +107,26 @@ func (c *Config) DeepCopy() *Config {
 		return nil
 	}
 
-	// Create new config
+	// Create new config with value type copies
 	newConfig := &Config{
-		Master:      c.Master,
-		SyncTrigger: c.SyncTrigger,
-		Logging:     c.Logging,
-		Slack:       c.Slack,
-		SyncRetry:   c.SyncRetry,
-		Metrics:     c.Metrics,
+		Master:      c.Master,      // String values are copied
+		SyncTrigger: c.SyncTrigger, // String and bool values are copied
+		Logging:     c.Logging,     // String and bool values are copied
+		Slack:       c.Slack,       // String and bool values are copied
+		SyncRetry:   c.SyncRetry,   // Bool and int values are copied
+		Metrics:     c.Metrics,     // Value types are copied
 	}
 
-	// Deep copy slices
+	// Deep copy Slaves slice
 	if c.Slaves != nil {
 		newConfig.Slaves = make([]SlaveConfig, len(c.Slaves))
-		copy(newConfig.Slaves, c.Slaves)
+		for i, slave := range c.Slaves {
+			// SlaveConfig contains only value types (strings, bool struct), so direct copy is safe
+			newConfig.Slaves[i] = slave
+		}
 	}
 
+	// Deep copy Gravity string slice
 	if c.Gravity != nil {
 		newConfig.Gravity = make([]string, len(c.Gravity))
 		copy(newConfig.Gravity, c.Gravity)
