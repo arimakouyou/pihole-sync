@@ -94,9 +94,42 @@ func (c *Config) SaveConfig(path string) error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, 0600); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
 	return nil
+}
+
+// DeepCopy creates a deep copy of the Config struct
+func (c *Config) DeepCopy() *Config {
+	if c == nil {
+		return nil
+	}
+
+	// Create new config with value type copies
+	newConfig := &Config{
+		Master:      c.Master,      // String values are copied
+		SyncTrigger: c.SyncTrigger, // String and bool values are copied
+		Logging:     c.Logging,     // String and bool values are copied
+		Slack:       c.Slack,       // String and bool values are copied
+		SyncRetry:   c.SyncRetry,   // Bool and int values are copied
+		Metrics:     c.Metrics,     // Value types are copied
+	}
+
+	// Deep copy Slaves slice
+	if c.Slaves != nil {
+		newConfig.Slaves = make([]SlaveConfig, len(c.Slaves))
+		for i, slave := range c.Slaves {
+			// SlaveConfig contains only value types (strings, bool struct), so direct copy is safe
+			newConfig.Slaves[i] = slave
+		}
+	}
+
+	// Deep copy Gravity string slice
+	if c.Gravity != nil {
+		newConfig.Gravity = append([]string(nil), c.Gravity...)
+	}
+
+	return newConfig
 }

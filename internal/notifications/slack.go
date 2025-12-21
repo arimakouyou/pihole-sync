@@ -11,6 +11,7 @@ import (
 type SlackNotifier struct {
 	webhookURL string
 	enabled    bool
+	client     *http.Client
 }
 
 type SlackMessage struct {
@@ -33,6 +34,9 @@ func NewSlackNotifier(webhookURL string, enabled bool) *SlackNotifier {
 	return &SlackNotifier{
 		webhookURL: webhookURL,
 		enabled:    enabled,
+		client: &http.Client{
+			Timeout: 10 * time.Second,
+		},
 	}
 }
 
@@ -76,7 +80,7 @@ func (s *SlackNotifier) sendMessage(message SlackMessage) error {
 		return fmt.Errorf("failed to marshal slack message: %w", err)
 	}
 
-	resp, err := http.Post(s.webhookURL, "application/json", bytes.NewBuffer(jsonData))
+	resp, err := s.client.Post(s.webhookURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to send slack message: %w", err)
 	}

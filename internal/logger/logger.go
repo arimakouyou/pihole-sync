@@ -70,6 +70,6 @@ func getLogLevel(levelStr string, debug bool) zapcore.Level {
 // Cleanup flushes the logger
 func Cleanup() {
 	if Logger != nil {
-		Logger.Sync()
+		_ = Logger.Sync() // Ignore error as it's common for Sync to fail on stdout/stderr
 	}
 }
