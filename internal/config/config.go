@@ -128,8 +128,7 @@ func (c *Config) DeepCopy() *Config {
 
 	// Deep copy Gravity string slice
 	if c.Gravity != nil {
-		newConfig.Gravity = make([]string, len(c.Gravity))
-		copy(newConfig.Gravity, c.Gravity)
+		newConfig.Gravity = append([]string(nil), c.Gravity...)
 	}
 
 	return newConfig
