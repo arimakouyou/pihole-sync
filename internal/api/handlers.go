@@ -167,8 +167,7 @@ func (s *Server) GravityGetHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.configMutex.RLock()
-	gravityCopy := make([]string, len(s.gravity))
-	copy(gravityCopy, s.gravity)
+	gravityCopy := append([]string(nil), s.gravity...)
 	s.configMutex.RUnlock()
 
 	accept := r.Header.Get("Accept")
@@ -272,11 +271,14 @@ func (s *Server) BackupHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.configMutex.RLock()
-	backup := BackupData{
-		Config:  s.config,
-		Gravity: s.gravity,
-	}
+	configCopy := s.config.DeepCopy()
+	gravityCopy := append([]string(nil), s.gravity...)
 	s.configMutex.RUnlock()
+
+	backup := BackupData{
+		Config:  configCopy,
+		Gravity: gravityCopy,
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Disposition", "attachment; filename=pihole-sync-backup.json")

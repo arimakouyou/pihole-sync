@@ -100,3 +100,33 @@ func (c *Config) SaveConfig(path string) error {
 
 	return nil
 }
+
+// DeepCopy creates a deep copy of the Config struct
+func (c *Config) DeepCopy() *Config {
+	if c == nil {
+		return nil
+	}
+
+	// Create new config
+	newConfig := &Config{
+		Master:      c.Master,
+		SyncTrigger: c.SyncTrigger,
+		Logging:     c.Logging,
+		Slack:       c.Slack,
+		SyncRetry:   c.SyncRetry,
+		Metrics:     c.Metrics,
+	}
+
+	// Deep copy slices
+	if c.Slaves != nil {
+		newConfig.Slaves = make([]SlaveConfig, len(c.Slaves))
+		copy(newConfig.Slaves, c.Slaves)
+	}
+
+	if c.Gravity != nil {
+		newConfig.Gravity = make([]string, len(c.Gravity))
+		copy(newConfig.Gravity, c.Gravity)
+	}
+
+	return newConfig
+}
